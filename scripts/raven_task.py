@@ -165,22 +165,28 @@ class RavenTask:
         # Instruction screen layout (reduce magic numbers in show_instruction)
         self.instruction_center_y = float(layout_cfg.get('instruction_center_y', 0.15))
         self.instruction_line_height = float(layout_cfg.get('instruction_line_height', 0.055))
-        self.instruction_button_width = float(layout_cfg.get('instruction_button_width', 0.52))
-        self.instruction_button_height = float(layout_cfg.get('instruction_button_height', 0.14))
-        self.instruction_button_x = float(layout_cfg.get('instruction_button_x', 0.0))
         self.instruction_button_y = float(layout_cfg.get('instruction_button_y', -0.38))
-        self.instruction_button_label_height = float(layout_cfg.get('instruction_button_label_height', 0.055))
-        self.instruction_button_line_width = int(layout_cfg.get('instruction_button_line_width', 4))
-        # Instruction button color set (accept lists or strings)
+
+        # Unified button layout properties (used by both instruction and submit buttons)
+        self.button_width = float(layout_cfg.get('button_width', 0.52))
+        self.button_height = float(layout_cfg.get('button_height', 0.14))
+        self.button_x = float(layout_cfg.get('button_x', 0.0))
+        self.button_label_height = float(layout_cfg.get('button_label_height', 0.055))
+        self.button_line_width = int(layout_cfg.get('button_line_width', 4))
+        # Button color set (accept lists or strings)
         def _col(name, default):
             val = layout_cfg.get(name, default)
             return val
-        self.instruction_button_fill_disabled = _col('instruction_button_fill_disabled', [0.15, 0.15, 0.15])
-        self.instruction_button_fill_enabled = _col('instruction_button_fill_enabled', [0, 0.4, 0])
-        self.instruction_button_fill_hover = _col('instruction_button_fill_hover', [0, 0.6, 0])
-        self.instruction_button_outline_disabled = _col('instruction_button_outline_disabled', [0.5, 0.5, 0.5])
-        self.instruction_button_outline_enabled = _col('instruction_button_outline_enabled', [0, 0.8, 0])
-        self.instruction_button_outline_hover = _col('instruction_button_outline_hover', 'yellow')
+        self.button_fill_disabled = _col('button_fill_disabled', [0.15, 0.15, 0.15])
+        self.button_fill_normal = _col('button_fill_normal', [0, 0.4, 0])
+        self.button_fill_hover = _col('button_fill_hover', [0, 0.6, 0])
+        self.button_outline_disabled = _col('button_outline_disabled', [0.5, 0.5, 0.5])
+        self.button_outline_normal = _col('button_outline_normal', [0, 0.8, 0])
+        self.button_outline_hover = _col('button_outline_hover', 'yellow')
+
+        # Submit button Y position (formal only)
+        self.submit_button_y = float(layout_cfg.get('submit_button_y', -0.88))
+
         self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
         self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
         self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
@@ -195,18 +201,6 @@ class RavenTask:
         # Debug mode overrides (apply to both practice and formal)
         self.debug_timer_show_threshold = float(layout_cfg.get('debug_timer_show_threshold', 20))
         self.debug_timer_red_threshold = float(layout_cfg.get('debug_timer_red_threshold', 10))
-
-        # Submit button layout (formal only)
-        self.submit_button_width = float(layout_cfg.get('submit_button_width', 0.5))
-        self.submit_button_height = float(layout_cfg.get('submit_button_height', 0.12))
-        self.submit_button_x = float(layout_cfg.get('submit_button_x', 0.0))
-        self.submit_button_y = float(layout_cfg.get('submit_button_y', -0.88))
-        self.submit_button_label_height = float(layout_cfg.get('submit_button_label_height', 0.055))
-        self.submit_button_line_width = int(layout_cfg.get('submit_button_line_width', 4))
-        self.submit_button_fill_normal = _col('submit_button_fill_normal', [0, 0.45, 0])
-        self.submit_button_fill_hover = _col('submit_button_fill_hover', [0, 0.6, 0])
-        self.submit_button_outline_normal = _col('submit_button_outline_normal', [0, 0.8, 0])
-        self.submit_button_outline_hover = _col('submit_button_outline_hover', 'yellow')
 
         # If config uses patterns + answers, generate items accordingly
         try:
@@ -372,11 +366,11 @@ class RavenTask:
         show_start = core.getTime()
         # In debug mode, make the instruction button immediately clickable (no countdown)
         delay = 0.0 if self.debug_mode else self.instruction_button_delay
-        btn_w = self.instruction_button_width
-        btn_h = self.instruction_button_height
-        btn_pos = (self.instruction_button_x, self.instruction_button_y)
-        label_h = self.instruction_button_label_height
-        line_w = self.instruction_button_line_width
+        btn_w = self.button_width
+        btn_h = self.button_height
+        btn_pos = (self.button_x, self.instruction_button_y)
+        label_h = self.button_label_height
+        line_w = self.button_line_width
         mouse = event.Mouse(win=self.win)
         clickable = False
 
@@ -392,11 +386,11 @@ class RavenTask:
             if clickable:
                 temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
                 hovered = temp_rect.contains(mouse)
-                fill_col = self.instruction_button_fill_hover if hovered else self.instruction_button_fill_enabled
-                outline_col = self.instruction_button_outline_hover if hovered else self.instruction_button_outline_enabled
+                fill_col = self.button_fill_hover if hovered else self.button_fill_normal
+                outline_col = self.button_outline_hover if hovered else self.button_outline_normal
             else:
-                fill_col = self.instruction_button_fill_disabled
-                outline_col = self.instruction_button_outline_disabled
+                fill_col = self.button_fill_disabled
+                outline_col = self.button_outline_disabled
 
             btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
                                     lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
@@ -664,21 +658,21 @@ class RavenTask:
         Returns:
             visual.Rect: The submit button rectangle for click detection
         """
-        btn_pos = (self.submit_button_x, self.submit_button_y)
+        btn_pos = (self.button_x, self.submit_button_y)
         mouse_local = event.Mouse(win=self.win)
-        temp_rect = visual.Rect(self.win, width=self.submit_button_width,
-                               height=self.submit_button_height, pos=btn_pos)
+        temp_rect = visual.Rect(self.win, width=self.button_width,
+                               height=self.button_height, pos=btn_pos)
         hovered = temp_rect.contains(mouse_local)
 
-        fill_col = self.submit_button_fill_hover if hovered else self.submit_button_fill_normal
-        outline_col = self.submit_button_outline_hover if hovered else self.submit_button_outline_normal
+        fill_col = self.button_fill_hover if hovered else self.button_fill_normal
+        outline_col = self.button_outline_hover if hovered else self.button_outline_normal
 
-        submit_rect = visual.Rect(self.win, width=self.submit_button_width,
-                                 height=self.submit_button_height, pos=btn_pos,
+        submit_rect = visual.Rect(self.win, width=self.button_width,
+                                 height=self.button_height, pos=btn_pos,
                                  lineColor=outline_col, fillColor=fill_col,
-                                 lineWidth=self.submit_button_line_width)
+                                 lineWidth=self.button_line_width)
         submit_label = visual.TextStim(self.win, text='提交作答', pos=btn_pos,
-                                      height=self.submit_button_label_height, color='white')
+                                      height=self.button_label_height, color='white')
         submit_rect.draw()
         submit_label.draw()
         return submit_rect
