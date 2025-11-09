@@ -1,0 +1,61 @@
+name: Auto Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-activate-base: false
+          activate-environment: psychopy-dev
+          environment-file: environment.yml
+          use-mamba: true
+
+      - name: Show Conda Info
+        run: |
+          conda info -e
+          conda list
+
+      - name: Build EXE with PyInstaller (onefile)
+        run: |
+          pwsh -File scripts/build_exe.ps1 -OneFile
+
+      - name: Compute timestamp
+        id: stamp
+        run: |
+          $ts = (Get-Date).ToString('yyyyMMdd_HHmmss')
+          "ts=$ts" >> $env:GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RavenTask-${{ steps.stamp.outputs.ts }}
+          path: dist/RavenTask.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: autobuild-${{ steps.stamp.outputs.ts }}
+          name: Auto Build ${{ steps.stamp.outputs.ts }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/RavenTask.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
