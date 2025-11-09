@@ -22,7 +22,7 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-function Ensure-Package($pkg) {
+function Install-PackageIfMissing($pkg) {
     conda run -n $CondaEnv python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('$pkg') else 1)"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Installing $pkg into $CondaEnv ..."
@@ -32,7 +32,7 @@ function Ensure-Package($pkg) {
 }
 
 Write-Host "Checking PyInstaller availability ..."
-Ensure-Package -pkg "pyinstaller"
+Install-PackageIfMissing -pkg "pyinstaller"
 
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
