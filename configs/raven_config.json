@@ -1,4 +1,5 @@
 {
+  "debug_mode": false,
   "answers_file": "stimuli/answers.txt",
   "practice": {
     "set": "I",

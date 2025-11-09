@@ -128,6 +128,7 @@ class RavenTask:
         self.formal_answers = {}
         self.current_formal_index = 0
         self.in_practice = True
+        self.debug_mode = config.get('debug_mode', False)
         self.start_time = core.getTime()
         # Deadlines are set right before each section starts (after showing instructions)
         self.practice_deadline = None
@@ -206,16 +207,36 @@ class RavenTask:
             "只剩最后10分钟时将倒计时提醒您",
             button_text="开始测试"
         )
-        self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
+        # Set formal deadline (use debug time if in debug mode)
+        if self.debug_mode:
+            # Debug: 10 min 5 sec = 605 seconds
+            self.formal_deadline = core.getTime() + 605
+        else:
+            self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
         self.run_formal()
 
     # ---------- Generic drawing helpers ----------
-    def draw_timer(self, deadline):
+    def draw_timer(self, deadline, show_only_last_10min=False):
+        """Draw countdown timer.
+
+        Args:
+            deadline: The deadline timestamp
+            show_only_last_10min: If True, only show timer when less than 10 minutes remain
+        """
         remaining = max(0, int(deadline - core.getTime()))
+
+        # If show_only_last_10min is True and more than 10 min remain, don't draw
+        if show_only_last_10min and remaining > 600:
+            return
+
         mins = remaining // 60
         secs = remaining % 60
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
-        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color='white')
+
+        # Change color to red if less than 5 minutes remain
+        color = 'red' if remaining <= 300 else 'white'
+
+        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color=color)
         timerStim.draw()
 
     def show_instruction(self, text: str, button_text: str = "继续"):
@@ -446,8 +467,8 @@ class RavenTask:
                 left_arrow.draw()
             if right_arrow:
                 right_arrow.draw()
-            # Timer below nav bar
-            self.draw_timer(self.formal_deadline)
+            # Timer below nav bar (only show in last 10 minutes for formal test)
+            self.draw_timer(self.formal_deadline, show_only_last_10min=True)
             # Question + options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
