@@ -58,7 +58,9 @@ pip install -r requirements.txt
 python scripts/raven_task.py
 ```
 
-默认：练习 Set I 10 分钟上限，正式 Set II 40 分钟上限。正式阶段顶部展示题号导航，可回看和修改已答题目；最后一题作答后底部出现“提交答案”按钮（不自动提交），点击后保存结果文件到 `data/` 目录，如：`raven_results_20250101_101530.csv`。
+**自动屏幕适配**：首次运行时，程序会自动检测屏幕分辨率，并根据显示器尺寸建议合适的布局参数。如果配置文件中未设置布局，会弹出对话框询问是否应用自动生成的建议参数。接受后会自动写入 `configs/raven_config.json` 并创建备份文件。
+
+默认：练习 Set I 10 分钟上限，正式 Set II 40 分钟上限。正式阶段顶部展示题号导航，可回看和修改已答题目；最后一题作答后底部出现"提交答案"按钮（不自动提交），点击后保存结果文件到 `data/` 目录，如：`raven_results_20250101_101530.csv`。
 
 你可以通过编辑 `configs/raven_config.json` 添加真实题目与图片路径。每个题目包含：
 
@@ -124,7 +126,17 @@ CSV 列：
 }
 ```
 
-其它可选键：`option_dx`, `option_dy`, `question_box_w`, `question_box_h` 等，用于进一步控制布局与缩放。如需更复杂的自适应分辨率逻辑，可在代码中扩展。
+其它可选键：`option_dx`, `option_dy`, `question_box_w`, `question_box_h` 等，用于进一步控制布局与缩放。
+
+**自动布局建议**：程序启动时会自动检测屏幕分辨率（通过 PsychoPy 或 tkinter），并根据以下规则生成建议参数：
+
+- **高分辨率屏幕** (≥2560px): `scale_question=1.4, scale_option=1.0`
+- **标准全高清** (≥1920px): `scale_question=1.3, scale_option=0.95`
+- **小屏幕** (<1280px): `scale_question=1.0, scale_option=0.8`
+- **超宽屏** (宽高比>2.0): 选项网格中心上移至 `-0.3`
+- **竖屏/窄屏** (宽高比<1.3): 导航和计时器上移，选项下移至 `-0.5`
+
+首次运行或配置文件无 `layout` 时会弹窗询问是否应用建议，确认后自动写入配置并创建 `.backup` 备份。如需更复杂的自适应分辨率逻辑，可在代码中扩展 `suggest_layout_for_resolution()` 函数。
 
 ## License
 

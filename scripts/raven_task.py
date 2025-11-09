@@ -501,8 +501,162 @@ def get_participant_info():
         gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
 
 
+def detect_screen_resolution():
+    """
+    Detect the primary screen resolution.
+    Returns (width, height) tuple or None if detection fails.
+    """
+    try:
+        # Try using PsychoPy's built-in monitor info first
+        from psychopy import monitors
+        mon_names = monitors.getAllMonitors()
+        if mon_names:
+            mon = monitors.Monitor(mon_names[0])
+            size = mon.getSizePix()
+            if size and len(size) >= 2 and size[0] > 0:
+                return int(size[0]), int(size[1])
+    except Exception:
+        pass
+
+    # Fallback: try tkinter
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.withdraw()
+        width = root.winfo_screenwidth()
+        height = root.winfo_screenheight()
+        root.destroy()
+        if width > 0 and height > 0:
+            return width, height
+    except Exception:
+        pass
+
+    return None
+
+
+def suggest_layout_for_resolution(width, height):
+    """
+    Generate suggested layout parameters based on screen resolution.
+
+    Args:
+        width: screen width in pixels
+        height: screen height in pixels
+
+    Returns:
+        dict with layout parameters
+    """
+    aspect_ratio = width / height if height > 0 else 1.0
+
+    # Base suggestions
+    layout = {
+        "scale_question": 1.2,
+        "scale_option": 0.9,
+        "nav_y": 0.90,
+        "timer_y": 0.82,
+        "option_grid_center_y": -0.425
+    }
+
+    # Adjust for different screen sizes
+    # High resolution (>1920px width): can use larger elements
+    if width >= 2560:
+        layout["scale_question"] = 1.4
+        layout["scale_option"] = 1.0
+    elif width >= 1920:
+        layout["scale_question"] = 1.3
+        layout["scale_option"] = 0.95
+    elif width < 1280:
+        # Small screen: reduce sizes
+        layout["scale_question"] = 1.0
+        layout["scale_option"] = 0.8
+        layout["option_grid_center_y"] = -0.35
+
+    # Adjust for ultra-wide screens (aspect ratio > 2.0)
+    if aspect_ratio > 2.0:
+        layout["option_grid_center_y"] = -0.3
+    # Adjust for narrow/portrait screens
+    elif aspect_ratio < 1.3:
+        layout["nav_y"] = 0.92
+        layout["timer_y"] = 0.85
+        layout["option_grid_center_y"] = -0.5
+
+    return layout
+
+
+def update_config_with_layout(config_path, layout_params):
+    """
+    Update the config file with suggested layout parameters.
+    Creates a backup of the original config.
+    """
+    # Read existing config
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
+
+    # Backup original if layout section exists
+    if 'layout' in config:
+        backup_path = config_path + '.backup'
+        if not os.path.exists(backup_path):
+            with open(backup_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+
+    # Update layout section
+    config['layout'] = layout_params
+
+    # Write updated config
+    with open(config_path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=2, ensure_ascii=False)
+
+    return config
+
+
+def check_and_suggest_layout(config_path):
+    """
+    Check screen resolution and suggest layout if needed.
+    Returns updated config.
+    """
+    resolution = detect_screen_resolution()
+
+    if resolution:
+        width, height = resolution
+        print(f"检测到屏幕分辨率: {width}x{height}")
+
+        # Check if config has layout section
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+
+        if 'layout' not in config or not config['layout']:
+            # No layout configured, suggest one
+            print("配置文件中未找到布局设置，正在生成建议参数...")
+            suggested = suggest_layout_for_resolution(width, height)
+            print(f"建议的布局参数:\n{json.dumps(suggested, indent=2, ensure_ascii=False)}")
+
+            # Ask user if they want to apply
+            dlg = gui.Dlg(title='布局建议')
+            dlg.addText(f'检测到屏幕分辨率: {width}x{height}')
+            dlg.addText(f'建议应用自动优化的布局参数')
+            dlg.addText(f'scale_question: {suggested["scale_question"]}')
+            dlg.addText(f'scale_option: {suggested["scale_option"]}')
+            dlg.addField('应用建议布局?', initial=True)
+            result = dlg.show()
+
+            if dlg.OK and result and result[0]:
+                config = update_config_with_layout(config_path, suggested)
+                print("✓ 已将建议布局参数写入配置文件")
+            else:
+                print("已跳过布局优化")
+        else:
+            print(f"配置文件已包含布局设置，使用现有配置")
+    else:
+        print("无法检测屏幕分辨率，使用配置文件中的默认布局")
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+
+    return config
+
+
 def main():
-    config = load_config(CONFIG_PATH)
+    # Check and suggest layout based on screen resolution
+    config = check_and_suggest_layout(CONFIG_PATH)
+
     # Retry loop for participant info
     while True:
         info = get_participant_info()
