@@ -21,6 +21,17 @@ raven-dev/
 
 ## Installation
 
+### 方法1：使用 Conda（推荐）
+
+创建并激活专用环境：
+
+```bash
+conda env create -f environment.yml
+conda activate psychopy-dev
+```
+
+### 方法2：使用 pip
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -29,7 +40,13 @@ pip install -r requirements.txt
 
 ### Run Raven Task
 
-确保已安装依赖：
+确保已激活 conda 环境（如果使用方法1）：
+
+```bash
+conda activate psychopy-dev
+```
+
+或确保已安装依赖（如果使用方法2）：
 
 ```bash
 pip install -r requirements.txt
