@@ -1,10 +1,18 @@
-# Raven Dev - PsychoPy Stimulus Presentation
+# RAPM Dev - Raven's Advanced Progressive Matrices Task
 
 [![Test and Build](https://github.com/EF-STUDY-FENG/rapm-dev/actions/workflows/auto-build.yml/badge.svg)](https://github.com/EF-STUDY-FENG/rapm-dev/actions/workflows/auto-build.yml)
 [![GitHub release](https://img.shields.io/github/v/release/EF-STUDY-FENG/rapm-dev?include_prereleases)](https://github.com/EF-STUDY-FENG/rapm-dev/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-This project is designed for stimulus presentation using PsychoPy.
+本项目是基于 PsychoPy 的 Raven 高级推理矩阵（RAPM）实验刺激呈现程序，用于心理学与认知科学研究中测量流体智力和抽象推理能力。
+
+**主要特性：**
+
+- ✅ 练习阶段（Set I）和正式测试（Set II）完整流程
+- ✅ 精确的时间控制和倒计时提醒
+- ✅ 灵活的题目导航和答案修改
+- ✅ 自动数据记录（CSV + JSON 格式）
+- ✅ 高度可配置的UI布局和实验参数
 
 ## Project Structure
 
@@ -20,11 +28,15 @@ raven-dev/
 
 ## 打包为可执行文件（.exe）
 
-以下步骤可将本项目打包为 Windows 下可分发的独立程序：
+以下步骤可将本项目打包为 Windows 下可分发的独立程序。
 
-前提：已在当前环境中安装 PsychoPy 及依赖（见上文安装）。
+### 前提条件
 
-1. 运行一键打包脚本（PowerShell）：
+已在当前环境中安装 PsychoPy 及依赖（见下文"Installation"章节）。
+
+### 打包步骤
+
+运行一键打包脚本（PowerShell）：
 
 ```powershell
 # 无控制台窗口、按目录输出（推荐分发）
@@ -37,26 +49,22 @@ pwsh -File scripts/build_exe.ps1 -OneFile
 pwsh -File scripts/build_exe.ps1 -Console
 ```
 
-完成后，产物位于 `dist/` 目录下：
+完成后，产物位于 `dist/` 目录下：`dist/RavenTask/`（目录模式）或 `dist/RavenTask.exe`（单文件模式）。
 
-- `dist/RavenTask/`（目录模式）或 `dist/RavenTask.exe`（单文件模式）。
+### 打包细节
 
-1. 打包细节
-
-- 脚本使用 PyInstaller，自动将 `configs/` 与 `stimuli/` 目录一并打包。
-- 代码已适配 PyInstaller（自动识别 `sys._MEIPASS` 与 `sys.executable`），运行时能正确定位资源文件。
-- 如需自定义图标，可执行：
+- 脚本使用 PyInstaller，自动将 `configs/` 与 `stimuli/` 目录一并打包
+- 代码已适配 PyInstaller（自动识别 `sys._MEIPASS` 与 `sys.executable`），运行时能正确定位资源文件
+- 自定义图标示例：
 
 ```powershell
 pwsh -File scripts/build_exe.ps1 -Icon .\assets\app.ico
 ```
 
-1. 常见问题
+### 常见问题
 
-- 若提示未找到 `pyinstaller`，脚本会自动通过 `pip` 安装。
-- 首次运行单文件模式时启动较慢属于正常现象（需解压临时目录）。
-- 如果你在 Builder/standalone PsychoPy 中遇到缺字库或声音模块问题，本项目未使用声音模块；如需加入，请在 `build_exe.ps1` 中添加相应 `--hidden-import`。
-
+- 若提示未找到 `pyinstaller`，脚本会自动通过 `pip` 安装
+- 首次运行单文件模式时启动较慢属于正常现象（需解压临时目录）
 
 ## Requirements
 
@@ -82,7 +90,7 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Run Raven Task
+### 运行 Raven 任务
 
 确保已激活 conda 环境（如果使用方法1）：
 
@@ -90,11 +98,7 @@ pip install -r requirements.txt
 conda activate psychopy-dev
 ```
 
-或确保已安装依赖（如果使用方法2）：
-
-```bash
-pip install -r requirements.txt
-```
+或确保已安装依赖（如果使用方法2）。
 
 运行实验（练习集 + 正式集）：
 
@@ -102,14 +106,23 @@ pip install -r requirements.txt
 python scripts/raven_task.py
 ```
 
-显示模式：
+### 显示模式
 
-- 非 Debug 模式：默认全屏运行（full screen）。
-- Debug 模式：默认窗口化（1280x800），便于快速测试与调试。
+- **非 Debug 模式**：默认全屏运行
+- **Debug 模式**：窗口化运行（1280x800），便于快速测试与调试
 
-布局参数位于 `configs/layout.json`（严格必需，外部覆盖优先）；详见下文“布局微调 (layout)”。
+### 配置文件
 
-默认：练习 Set I 10 分钟上限，正式 Set II 40 分钟上限。正式阶段顶部展示题号导航，可回看和修改已答题目；最后一题作答后底部出现"提交答案"按钮（不自动提交），点击后保存结果文件到 `data/` 目录，如：`raven_results_20250101_101530.csv`。
+实验使用两个独立的配置文件：
+
+- **`configs/sequence.json`**: 实验序列配置（练习/正式阶段、题目模式、时间限制等）
+- **`configs/layout.json`**: UI 布局配置（缩放、位置、字体等）
+
+详见下文"配置说明"章节。
+
+## 配置说明
+
+### 实验序列配置 (sequence.json)
 
 题目与序列配置通过 `configs/sequence.json` 设置。推荐使用"按模式自动生成"方式：
 
@@ -134,36 +147,67 @@ python scripts/raven_task.py
 
 说明：
 
-- `pattern` 中 `{XX}` 为两位序号（01..），`{Y}` 为图片索引（0=题干，1..8=选项）。
-- `answers_file` 每行一个数字（1..8）；前 12 行对应练习题，后续行对应正式题。
-- 若不使用 `pattern`，也可在 `practice/formal` 下提供 `items` 数组（字段：`id`、`question_image`、`options`、可选 `correct`）。
+- **`pattern`**: 使用 `{XX}` 表示两位序号（01, 02...），`{Y}` 表示图片索引（0=题干，1-8=选项）
+- **`answers_file`**: 每行一个数字（1-8），前 12 行对应练习题，后续行对应正式题
+- **`time_limit_minutes`**: 控制练习与正式阶段时长（默认：练习 10 分钟，正式 40 分钟）
+- 若不使用 `pattern`，也可在 `practice/formal` 下提供 `items` 数组（字段：`id`、`question_image`、`options`、可选 `correct`）
 
-### 自定义时间限制
+### 实验流程
 
-`time_limit_minutes` 字段控制练习与正式阶段时长。
+- **练习 Set I**: 10 分钟上限，作答后自动进入下一题
+- **正式 Set II**: 40 分钟上限，顶部展示题号导航，可回看和修改已答题目
+- **提交**: 最后一题作答后底部出现"提交答案"按钮（不自动提交），点击后保存结果到 `data/` 目录
 
 ### 数据输出格式
 
-自动根据配置中的模式与 `stimuli/answers.txt` 生成题目。结果包含：
+程序在被试点击"提交答案"后自动保存两个文件到 `data/` 目录：
 
-CSV 列：
+#### CSV 文件: `raven_results_YYYYMMDD_HHMMSS.csv`
 
-`participant_id, section, item_id, answer, correct, is_correct, timestamp`
+**列定义：** `participant_id, section, item_id, answer, correct, is_correct, time`
 
-说明：
+- **`participant_id`**: 被试编号
+- **`section`**: 阶段名称（`practice` 或 `formal`）
+- **`item_id`**: 题目编号
+- **`answer`**: 被试选择的选项序号（1-8），未作答为空
+- **`correct`**: 正确选项序号（1-8），如果配置中未提供则为空
+- **`is_correct`**: 作答正确性
+  - `1` = 正确
+  - `0` = 错误
+  - 空 = 未作答或无正确答案可比对
+- **`time`**: 该题目耗时（秒），从该阶段开始计时到最后一次作答/修改的时间差
 
-- `answer` 为被试选择的选项序号（1-8），未作答为空。
-- `correct` 为正确选项序号（1-8）。
-- `is_correct` 为 1 正确 / 0 错误 / 空 表示未作答或无正确答案定义。
-- `timestamp` 为保存时间（统一时间戳）。
+**示例：**
 
-会话还生成 JSON：`raven_session_YYYYMMDD_HHMMSS.json`，含：
+```csv
+participant_id,section,item_id,answer,correct,is_correct,time
+P001,practice,t01,3,3,1,5.234
+P001,practice,t02,5,5,1,8.127
+P001,formal,01,2,2,1,12.456
+```
+
+#### JSON 文件: `raven_session_YYYYMMDD_HHMMSS.json`
+
+包含完整会话信息的 JSON 文件，用于后续分析：
 
 ```jsonc
 {
-  "participant": {"participant_id": "..."},
-  "practice": {"n_items": 12, "correct_count": 9, /* ... */},
-  "formal": {"n_items": 36, "correct_count": 28, /* ... */},
+  "participant": {
+    "participant_id": "P001"
+  },
+  "time_created": "2025-01-09T10:30:00",
+  "practice": {
+    "set": "Set I",
+    "time_limit_minutes": 10,
+    "n_items": 12,
+    "correct_count": 9
+  },
+  "formal": {
+    "set": "Set II",
+    "time_limit_minutes": 40,
+    "n_items": 36,
+    "correct_count": 28
+  },
   "total_correct": 37,
   "total_items": 48
 }
@@ -325,10 +369,16 @@ stimuli/
 python tests/test_raven_task.py
 ```
 
-测试覆盖：
+测试覆盖范围：
 
+- 路径解析和资源定位
+- 配置文件加载（sequence.json 和 layout.json）
+- 布局参数合并机制
+- Stimuli 目录空检测
 - 答案文件解析
-- 工具函数 (file_exists_nonempty 等)
+- 工具函数验证
+
+当前测试状态：**9/9 通过** ✅
 
 ## License
 
