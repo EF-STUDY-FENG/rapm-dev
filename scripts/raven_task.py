@@ -718,9 +718,18 @@ class RavenTask:
                 json.dump(meta, mf, ensure_ascii=False, indent=2)
         except Exception:
             pass
-        confirm = visual.TextStim(self.win, text=f'提交成功! 保存于 {out_path}', height=0.05, color='green')
-        for _ in range(240):
-            confirm.draw(); self.win.flip()
+        # Display final completion message (two lines, 1.5x line spacing)
+        line1 = '作答完成！'
+        line2 = '感谢您的作答！'
+        spacing = 1.5
+        base_h = 0.065
+        total_h = base_h * spacing
+        y1 = 0.05 + total_h / 2.0
+        y2 = y1 - total_h
+        for _ in range(300):  # show a bit longer (~5s at 60Hz)
+            visual.TextStim(self.win, text=line1, pos=(0, y1), height=base_h, color='green', bold=True).draw()
+            visual.TextStim(self.win, text=line2, pos=(0, y2), height=base_h, color='white').draw()
+            self.win.flip()
 
 
 def load_config(path):
