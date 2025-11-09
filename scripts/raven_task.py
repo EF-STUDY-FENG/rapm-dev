@@ -211,8 +211,9 @@ class RavenTask:
 
     def create_option_rects(self):
         rects = []
-        dx = self.dx_base * self.scale_option
-        dy = self.dy_base * self.scale_option
+        # Use absolute spacing so shrinking options doesn't make grid too tight
+        dx = self.dx_base
+        dy = self.dy_base
         cols = self.option_cols
         rows = self.option_rows
         total_w = dx * (cols - 1)
@@ -243,7 +244,10 @@ class RavenTask:
                 rect.lineWidth = 2
             if idx < len(option_paths) and file_exists_nonempty(option_paths[idx]):
                 try:
-                    disp_w, disp_h = fitted_size_keep_aspect(option_paths[idx], 0.36, 0.28)
+                    # Limit image to 85% of rect to reveal border clearly
+                    max_w = rect.width * 0.85
+                    max_h = rect.height * 0.85
+                    disp_w, disp_h = fitted_size_keep_aspect(option_paths[idx], max_w, max_h)
                     img = visual.ImageStim(self.win, image=resolve_path(option_paths[idx]), pos=rect.pos, size=(disp_w, disp_h))
                     img.draw()
                 except Exception:
