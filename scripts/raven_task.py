@@ -338,22 +338,50 @@ class RavenTask:
         os.makedirs(DATA_DIR, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
-        # write CSV answers with participant id and timestamp
+        # write CSV answers with correctness info
+        pid = self.participant_info.get('participant_id', '')
+        tnow = datetime.now().isoformat(timespec='seconds')
+        practice_correct = 0
+        formal_correct = 0
         with open(out_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'timestamp'])
-            pid = self.participant_info.get('participant_id', '')
-            tnow = datetime.now().isoformat(timespec='seconds')
-            for k, v in self.practice_answers.items():
-                writer.writerow([pid, 'practice', k, v, tnow])
-            for k, v in self.formal_answers.items():
-                writer.writerow([pid, 'formal', k, v, tnow])
+            writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'correct', 'is_correct', 'timestamp'])
+            # practice items
+            for item in self.practice.get('items', []):
+                iid = item.get('id')
+                ans = self.practice_answers.get(iid)
+                correct = item.get('correct')
+                is_correct = (ans == correct) if (ans is not None and correct is not None) else None
+                if is_correct:
+                    practice_correct += 1
+                writer.writerow([pid, 'practice', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
+            # formal items
+            for item in self.formal.get('items', []):
+                iid = item.get('id')
+                ans = self.formal_answers.get(iid)
+                correct = item.get('correct')
+                is_correct = (ans == correct) if (ans is not None and correct is not None) else None
+                if is_correct:
+                    formal_correct += 1
+                writer.writerow([pid, 'formal', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
         # write a metadata json as well
         meta = {
             'participant': self.participant_info,
             'time_created': datetime.now().isoformat(timespec='seconds'),
-            'practice': {'set': self.practice.get('set'), 'time_limit_minutes': self.practice.get('time_limit_minutes'), 'n_items': len(self.practice.get('items', []))},
-            'formal': {'set': self.formal.get('set'), 'time_limit_minutes': self.formal.get('time_limit_minutes'), 'n_items': len(self.formal.get('items', []))}
+            'practice': {
+                'set': self.practice.get('set'),
+                'time_limit_minutes': self.practice.get('time_limit_minutes'),
+                'n_items': len(self.practice.get('items', [])),
+                'correct_count': practice_correct
+            },
+            'formal': {
+                'set': self.formal.get('set'),
+                'time_limit_minutes': self.formal.get('time_limit_minutes'),
+                'n_items': len(self.formal.get('items', [])),
+                'correct_count': formal_correct
+            },
+            'total_correct': practice_correct + formal_correct,
+            'total_items': len(self.practice.get('items', [])) + len(self.formal.get('items', []))
         }
         meta_path = os.path.join(DATA_DIR, f'raven_session_{ts}.json')
         try:
