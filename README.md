@@ -110,6 +110,22 @@ CSV 列：
 }
 ```
 
+### 布局微调 (layout)
+
+在 `configs/raven_config.json` 中可通过 `layout` 段调整显示：
+
+```jsonc
+"layout": {
+  "scale_question": 1.2,      // 题干区域整体缩放
+  "scale_option": 0.9,        // 选项区域缩放（<1 缩小）
+  "nav_y": 0.90,              // 顶部导航条的 y 位置
+  "timer_y": 0.82,            // 计时器 y 位置
+  "option_grid_center_y": -0.425 // 选项网格中心 y
+}
+```
+
+其它可选键：`option_dx`, `option_dy`, `question_box_w`, `question_box_h` 等，用于进一步控制布局与缩放。如需更复杂的自适应分辨率逻辑，可在代码中扩展。
+
 ## License
 
 TBD

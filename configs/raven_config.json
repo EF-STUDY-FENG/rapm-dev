@@ -11,5 +11,12 @@
     "time_limit_minutes": 40,
     "count": 36,
     "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg"
+  },
+  "layout": {
+    "scale_question": 1.2,
+    "scale_option": 0.9,
+    "nav_y": 0.90,
+    "timer_y": 0.82,
+    "option_grid_center_y": -0.425
   }
 }
