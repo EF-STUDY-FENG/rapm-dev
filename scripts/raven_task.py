@@ -62,6 +62,21 @@ DATA_DIR = _get_output_dir()
 LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
 
 
+def _get_exe_override_path(rel_path: str) -> str | None:
+    """When running as a frozen exe, return the override path next to the exe.
+
+    Example: rel_path='configs/layout.json' -> '<exe_dir>/configs/layout.json'
+    Returns None if not frozen.
+    """
+    try:
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            return os.path.join(exe_dir, rel_path)
+    except Exception:
+        pass
+    return None
+
+
 def file_exists_nonempty(path: str) -> bool:
     try:
         p = resolve_path(path)
@@ -1117,36 +1132,38 @@ def check_and_suggest_layout(config_path):
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
 
-    # Try load layout file
+    # Try load layout file with override precedence:
+    # 1) If running as exe and '<exe_dir>/configs/layout.json' exists, use it
+    # 2) Else, use bundled BASE_DIR 'configs/layout.json' if exists
     layout = None
-    if os.path.exists(LAYOUT_CONFIG_PATH):
-        try:
-            with open(LAYOUT_CONFIG_PATH, 'r', encoding='utf-8') as lf:
-                layout = json.load(lf)
-            print(f"使用独立布局文件: {os.path.basename(LAYOUT_CONFIG_PATH)}")
-        except Exception:
-            layout = None
-    # Legacy fallback: raven_layout.json -> migrate to layout.json
-    if layout is None:
-        legacy = os.path.join(os.path.dirname(LAYOUT_CONFIG_PATH), 'raven_layout.json')
-        if os.path.exists(legacy):
+    override_layout_path = _get_exe_override_path(os.path.join('configs', 'layout.json'))
+    tried_paths = []
+    for candidate in [override_layout_path, LAYOUT_CONFIG_PATH]:
+        if not candidate:
+            continue
+        tried_paths.append(candidate)
+        if os.path.exists(candidate):
             try:
-                with open(legacy, 'r', encoding='utf-8') as lf:
+                with open(candidate, 'r', encoding='utf-8') as lf:
                     layout = json.load(lf)
-                # write to new path for future runs
-                update_config_with_layout(LAYOUT_CONFIG_PATH, layout)
-                print("已从 raven_layout.json 迁移到 layout.json")
+                if candidate == override_layout_path:
+                    print(f"使用外部布局文件覆盖默认: {candidate}")
+                else:
+                    print(f"使用独立布局文件: {os.path.basename(candidate)}")
+                break
             except Exception:
                 layout = None
+    # Note: legacy 'raven_layout.json' migration removed
 
     # Backward compatibility: fallback to embedded layout
     if layout is None:
         embedded = config.get('layout')
         if embedded:
             layout = embedded
-            # Optional: migrate to standalone file
+            # Optional: migrate to standalone file (prefer external target if frozen)
             try:
-                update_config_with_layout(LAYOUT_CONFIG_PATH, layout)
+                target_path = override_layout_path or LAYOUT_CONFIG_PATH
+                update_config_with_layout(target_path, layout)
                 print("已从主配置迁移布局到独立文件")
             except Exception:
                 pass
