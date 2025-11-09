@@ -1,0 +1,56 @@
+{
+  "practice": {
+    "set": "I",
+    "time_limit_minutes": 10,
+    "items": [
+      {
+        "id": "P1",
+        "question_image": "stimuli/placeholder.png",
+        "options": [
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png"
+        ]
+      }
+    ]
+  },
+  "formal": {
+    "set": "II",
+    "time_limit_minutes": 40,
+    "items": [
+      {
+        "id": "F1",
+        "question_image": "stimuli/placeholder.png",
+        "options": [
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png"
+        ]
+      },
+      {
+        "id": "F2",
+        "question_image": "stimuli/placeholder.png",
+        "options": [
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png",
+          "stimuli/placeholder.png"
+        ]
+      }
+    ]
+  }
+}
