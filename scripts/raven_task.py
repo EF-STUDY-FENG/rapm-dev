@@ -126,15 +126,12 @@ class RavenTask:
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
-        self.in_practice = True
         # Enable debug mode if configured OR if participant_id is "0"
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = config.get('debug_mode', False) or (pid == '0')
-        self.start_time = core.getTime()
         # Deadlines are set right before each section starts (after showing instructions)
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
-        self.submit_visible = False
         # navigation strip window size
         self.max_visible_nav = 12
         # Layout tuning (can be overridden in config.layout)
@@ -249,7 +246,6 @@ class RavenTask:
         # Run practice section
         self.run_section('practice')
         # Practice finished
-        self.in_practice = False
         # Show formal instructions
         self.show_instruction(
             "练习结束，下面将开始正式测试\n"
