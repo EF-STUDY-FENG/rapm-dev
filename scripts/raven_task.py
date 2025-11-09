@@ -238,8 +238,15 @@ class RavenTask:
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
+
+        # Layout parameters are automatically merged by load_layout() in config_loader.py
+        # All default keys are guaranteed to be present, so no validation needed here
+        self.layout = dict(layout)
+
+        # Debug mode: can be set in layout.json or by entering participant_id as '0'
         pid = str(self.participant_info.get('participant_id', '')).strip()
-        self.debug_mode = sequence.get('debug_mode', False) or (pid == '0')
+        self.debug_mode = self.layout.get('debug_mode', False) or (pid == '0')
+
         # Deadlines are set right before each section starts (after showing instructions)
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
@@ -249,10 +256,6 @@ class RavenTask:
         self.practice_start_time = None
         self.formal_last_times = {}
         self.formal_start_time = None
-        # New rule: layout.json must define ALL required keys. No implicit defaults.
-        self.layout = dict(layout)
-        if 'font_main' not in self.layout:
-            raise RuntimeError("layout.json 缺少必要的 'font_main' 键。请在 configs/layout.json 中添加它。")
 
         try:
             answers_file = sequence.get('answers_file')
@@ -1028,7 +1031,7 @@ def main():
         break
     # Determine debug flag before creating the window
     pid_str = str((info or {}).get('participant_id', '')).strip()
-    debug_active = bool(sequence.get('debug_mode', False) or (pid_str == '0'))
+    debug_active = bool(layout.get('debug_mode', False) or (pid_str == '0'))
 
     # In non-debug mode run fullscreen; in debug mode use a window for convenience
     if debug_active:

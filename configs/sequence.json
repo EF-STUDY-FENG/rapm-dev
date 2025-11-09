@@ -11,6 +11,5 @@
     "count": 36,
     "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg"
   },
-  "answers_file": "stimuli/answers.txt",
-  "debug_mode": false
+  "answers_file": "stimuli/answers.txt"
 }

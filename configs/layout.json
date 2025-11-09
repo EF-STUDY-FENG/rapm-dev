@@ -6,7 +6,7 @@
     "instruction": ["instruction_center_y", "instruction_line_height", "instruction_line_spacing", "instruction_button_delay", "instruction_button_y"],
     "button": ["button_width", "button_height", "button_x", "button_label_height", "button_line_width", "button_fill_disabled", "button_fill_normal", "button_fill_hover", "button_outline_disabled", "button_outline_normal", "button_outline_hover", "submit_button_y"],
     "timer": ["header_y", "header_font_size", "timer_show_threshold", "timer_red_threshold", "formal_timer_show_threshold", "debug_timer_show_threshold", "debug_timer_red_threshold"],
-    "misc": ["font_main"]
+    "misc": ["font_main", "debug_mode"]
   },
   "_descriptions": {
     "scale_question": "题目图片整体缩放系数",
@@ -60,7 +60,8 @@
     "formal_timer_show_threshold": "正式测试计时器显示阈值",
     "debug_timer_show_threshold": "调试模式显示阈值",
     "debug_timer_red_threshold": "调试模式变红阈值",
-    "font_main": "UI 文本主字体（系统字体名或字体文件路径）；留空则按平台自动回退"
+    "font_main": "UI 文本主字体（系统字体名或字体文件路径）；留空则按平台自动回退",
+    "debug_mode": "调试模式开关：启用后时间大幅缩短便于测试（练习10秒，正式25秒），也可输入被试编号为0启用"
   },
   "scale_question": 1.584,
   "scale_option": 0.81,
@@ -113,5 +114,6 @@
   "nav_item_h": 0.07,
   "nav_label_height": 0.036,
   "nav_arrow_label_height": 0.05,
-  "font_main": "Microsoft YaHei"
+  "font_main": "Microsoft YaHei",
+  "debug_mode": false
 }
