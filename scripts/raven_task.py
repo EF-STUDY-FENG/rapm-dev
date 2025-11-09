@@ -915,7 +915,15 @@ def main():
             else:
                 return
         break
-    win = visual.Window(size=(1280, 800), color='black', units='norm')
+    # Determine debug flag before creating the window
+    pid_str = str((info or {}).get('participant_id', '')).strip()
+    debug_active = bool(config.get('debug_mode', False) or (pid_str == '0'))
+
+    # In non-debug mode run fullscreen; in debug mode use a window for convenience
+    if debug_active:
+        win = visual.Window(size=(1280, 800), color='black', units='norm')
+    else:
+        win = visual.Window(fullscr=True, color='black', units='norm')
     task = RavenTask(win, config, participant_info=info)
     task.run()
     win.close()
