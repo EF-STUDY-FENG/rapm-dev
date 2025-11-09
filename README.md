@@ -107,28 +107,36 @@ python scripts/raven_task.py
 - 非 Debug 模式：默认全屏运行（full screen）。
 - Debug 模式：默认窗口化（1280x800），便于快速测试与调试。
 
-**自动屏幕适配**：首次运行时，程序会自动检测屏幕分辨率，并根据显示器尺寸建议合适的布局参数。如果配置文件中未设置布局，会弹出对话框询问是否应用自动生成的建议参数。接受后会自动写入 `configs/raven_config.json` 并创建备份文件。
+布局参数位于 `configs/layout.json`（严格必需，外部覆盖优先）；详见下文“布局微调 (layout)”。
 
 默认：练习 Set I 10 分钟上限，正式 Set II 40 分钟上限。正式阶段顶部展示题号导航，可回看和修改已答题目；最后一题作答后底部出现"提交答案"按钮（不自动提交），点击后保存结果文件到 `data/` 目录，如：`raven_results_20250101_101530.csv`。
 
-你可以通过编辑 `configs/raven_config.json` 添加真实题目与图片路径。每个题目包含：
+题目与资源通过 `configs/items.json` 配置。推荐使用“按模式自动生成”方式：
 
 ```jsonc
 {
-  "id": "F1",
-  "question_image": "stimuli/f1_question.png",
-  "options": [
-    "stimuli/f1_opt1.png",
-    "stimuli/f1_opt2.png",
-    "stimuli/f1_opt3.png",
-    "stimuli/f1_opt4.png",
-    "stimuli/f1_opt5.png",
-    "stimuli/f1_opt6.png",
-    "stimuli/f1_opt7.png",
-    "stimuli/f1_opt8.png"
-  ]
+  "practice": {
+    "set": "Set I",
+    "time_limit_minutes": 10,
+    "count": 12,
+    "pattern": "stimuli/images/RAPM_t{XX}-{Y}.jpg"
+  },
+  "formal": {
+    "set": "Set II",
+    "time_limit_minutes": 40,
+    "count": 36,
+    "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg"
+  },
+  "answers_file": "stimuli/answers.txt",
+  "debug_mode": false
 }
 ```
+
+说明：
+
+- `pattern` 中 `{XX}` 为两位序号（01..），`{Y}` 为图片索引（0=题干，1..8=选项）。
+- `answers_file` 每行一个数字（1..8）；前 12 行对应练习题，后续行对应正式题。
+- 若不使用 `pattern`，也可在 `practice/formal` 下提供 `items` 数组（字段：`id`、`question_image`、`options`、可选 `correct`）。
 
 ### 自定义时间限制
 
@@ -163,28 +171,28 @@ CSV 列：
 
 ### 布局微调 (layout)
 
-在 `configs/raven_config.json` 中可通过 `layout` 段调整显示：
+布局参数位于独立文件 `configs/layout.json`（必须存在且键齐全）。运行时会优先使用与可执行文件同目录的 `configs/layout.json` 覆盖内置；若缺失将直接报错。常用键示例：
 
 ```jsonc
-"layout": {
-  "scale_question": 1.2,      // 题干区域整体缩放
-  "scale_option": 0.9,        // 选项区域缩放（<1 缩小）
-  "nav_y": 0.90,              // 顶部导航条的 y 位置
-  "timer_y": 0.82,            // 计时器 y 位置（与 header_y 统一建议）
-  "header_y": 0.82,           // 头部信息统一高度（倒计时与进度共用）
-  "header_font_size": 0.04,   // 头部信息字号（倒计时与进度共用）
-  "option_grid_center_y": -0.425 // 选项网格中心 y
+{
+  "scale_question": 1.584,      // 题干区域整体缩放
+  "scale_option": 0.81,         // 选项区域缩放
+  "nav_y": 0.90,                // 顶部导航条的 y 位置
+  "header_y": 0.82,             // 头部信息统一高度（倒计时与进度共用）
+  "header_font_size": 0.04,     // 头部信息字号
+  "option_grid_center_y": -0.48,// 选项网格中心 y
+  "font_main": "Microsoft YaHei" // UI 主字体
 }
 ```
 
-其它可选键：`option_dx`, `option_dy`, `question_box_w`, `question_box_h` 等，用于进一步控制布局与缩放。
+更多键请参考仓库内的 `configs/layout.json` 中的 `_descriptions` 注释。
 
 #### 顶部导航与进度对齐（高级）
 
-为确保“进度”与右侧翻页箭头精确对齐，同时让题号在两箭头之间等间距排布，提供以下参数：
+为确保“进度”与右侧翻页箭头精确对齐，同时让题号在两箭头之间等间距排布，`layout.json` 提供以下参数：
 
 ```jsonc
-"layout": {
+{
   // 箭头矩形位置与宽度（中心坐标与宽度，单位为 norm）
   "nav_arrow_x_right": 0.98,
   "nav_arrow_x_left": -0.98,
@@ -197,15 +205,7 @@ CSV 列：
 
 进度文本将以 `header_y` 为纵坐标、在右侧显示，并与右箭头矩形左边缘保持 `progress_right_margin` 的水平距离；文本尝试右对齐（若 PsychoPy 版本不支持则忽略）。
 
-**自动布局建议**：程序启动时会自动检测屏幕分辨率（通过 PsychoPy 或 tkinter），并根据以下规则生成建议参数：
-
-- **高分辨率屏幕** (≥2560px): `scale_question=1.4, scale_option=1.0`
-- **标准全高清** (≥1920px): `scale_question=1.3, scale_option=0.95`
-- **小屏幕** (<1280px): `scale_question=1.0, scale_option=0.8`
-- **超宽屏** (宽高比>2.0): 选项网格中心上移至 `-0.3`
-- **竖屏/窄屏** (宽高比<1.3): 导航和计时器上移，选项下移至 `-0.5`
-
-首次运行或配置文件无 `layout` 时会弹窗询问是否应用建议，确认后自动写入配置并创建 `.backup` 备份。如需更复杂的自适应分辨率逻辑，可在代码中扩展 `suggest_layout_for_resolution()` 函数。
+> 严格配置策略：本项目不再自动生成/建议布局参数。若缺少 `configs/layout.json` 或键不完整，将直接报错，请手工编辑该文件。
 
 ### Debug 模式
 
@@ -213,7 +213,7 @@ CSV 列：
 
 **启用方式（两种方法任选其一）：**
 
-1. **配置文件启用**：在 `configs/raven_config.json` 中设置：
+1. **配置文件启用**：在 `configs/items.json` 中设置：
 
    ```json
    "debug_mode": true

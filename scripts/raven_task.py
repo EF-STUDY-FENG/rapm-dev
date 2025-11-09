@@ -250,17 +250,10 @@ class RavenTask:
         self.formal_last_times = {}
         self.formal_start_time = None
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
-        self.layout = dict(layout_cfg)  # layout overrides
-        # Set default UI font with platform-specific fallback if not provided
-        try:
-            sysname = platform.system()
-        except Exception:
-            sysname = 'Windows'
-        default_font = 'Microsoft YaHei' if sysname == 'Windows' else (
-            'PingFang SC' if sysname == 'Darwin' else 'Noto Sans CJK SC'
-        )
-        if not self.layout.get('font_main'):
-            self.layout['font_main'] = default_font
+        # New rule: layout.json must define ALL required keys. No implicit defaults.
+        self.layout = dict(layout_cfg)
+        if 'font_main' not in self.layout:
+            raise RuntimeError("layout.json 缺少必要的 'font_main' 键。请在 configs/layout.json 中添加它。")
 
         try:
             answers_file = config.get('answers_file')
@@ -280,12 +273,11 @@ class RavenTask:
                 self.formal['items'] = build_items_from_pattern(f_pattern, f_count, answers, p_count, 'F')
 
     # ---------- Layout accessor ----------
-    def L(self, key, default=None):
-        """Convenience accessor for layout values with defaults."""
-        try:
-            return self.layout.get(key, default)
-        except Exception:
-            return default
+    def L(self, key):
+        """Strict accessor for layout values. Missing keys raise a clear error."""
+        if key not in self.layout:
+            raise KeyError(f"layout.json 缺少必须的键: {key}")
+        return self.layout[key]
     def run(self):
         """Main entry point: run practice then formal test"""
         # Show practice instructions
@@ -353,10 +345,10 @@ class RavenTask:
         timerStim = visual.TextStim(
             self.win,
             text=timer_text,
-            pos=(0, self.L('header_y', 0.82)),
-            height=self.L('header_font_size', 0.04),
+            pos=(0, self.L('header_y')),
+            height=self.L('header_font_size'),
             color=color,
-            font=self.L('font_main', 'Microsoft YaHei')
+            font=self.L('font_main')
         )
         timerStim.draw()
 
@@ -383,7 +375,7 @@ class RavenTask:
         for i, text in enumerate(lines):
             y = start_y - i * (line_height * spacing)
             color = (colors[i] if (colors and i < len(colors)) else 'white')
-            stim = visual.TextStim(self.win, text=text or '', pos=(x, y), height=line_height, color=color, font=self.L('font_main', 'Microsoft YaHei'))
+            stim = visual.TextStim(self.win, text=text or '', pos=(x, y), height=line_height, color=color, font=self.L('font_main'))
             # try bold if available
             try:
                 if bold_idx and i in bold_idx:
@@ -402,11 +394,11 @@ class RavenTask:
         txt = f"已答 {answered_count} / 总数 {total_count}"
         color = 'green' if total_count > 0 and answered_count >= total_count else 'white'
         # Place at right side on the same height as the timer (i.e., under nav), right-aligned
-        y = self.L('header_y', 0.82)
+        y = self.L('header_y')
         # Align progress left edge to the left edge of the right arrow box (with a small margin)
-        right_edge_x = self.L('nav_arrow_x_right', 0.98) - (self.L('nav_arrow_w', 0.09) / 2.0)
-        x = right_edge_x - self.L('progress_right_margin', 0.01)
-        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.L('header_font_size', 0.04), color=color, font=self.L('font_main', 'Microsoft YaHei'))
+        right_edge_x = self.L('nav_arrow_x_right') - (self.L('nav_arrow_w') / 2.0)
+        x = right_edge_x - self.L('progress_right_margin')
+        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.L('header_font_size'), color=color, font=self.L('font_main'))
         try:
             progStim.anchorHoriz = 'right'
         except Exception:
@@ -437,17 +429,17 @@ class RavenTask:
         in debug mode, it's clickable immediately (no countdown).
         """
         lines = (text or "").split("\n")
-        center_y = self.L('instruction_center_y', 0.15)
-        line_h = self.L('instruction_line_height', 0.055)
-        spacing = self.L('instruction_line_spacing', 1.5)
+        center_y = self.L('instruction_center_y')
+        line_h = self.L('instruction_line_height')
+        spacing = self.L('instruction_line_spacing')
         show_start = core.getTime()
         # In debug mode, make the instruction button immediately clickable (no countdown)
-        delay = 0.0 if self.debug_mode else self.L('instruction_button_delay', 5.0)
-        btn_w = self.L('button_width', 0.52)
-        btn_h = self.L('button_height', 0.14)
-        btn_pos = (self.L('button_x', 0.0), self.L('instruction_button_y', -0.38))
-        label_h = self.L('button_label_height', 0.055)
-        line_w = self.L('button_line_width', 4)
+        delay = 0.0 if self.debug_mode else self.L('instruction_button_delay')
+        btn_w = self.L('button_width')
+        btn_h = self.L('button_height')
+        btn_pos = (self.L('button_x'), self.L('instruction_button_y'))
+        label_h = self.L('button_label_height')
+        line_w = self.L('button_line_width')
         mouse = event.Mouse(win=self.win)
         clickable = False
 
@@ -463,17 +455,17 @@ class RavenTask:
             if clickable:
                 temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
                 hovered = temp_rect.contains(mouse)
-                fill_col = self.L('button_fill_hover', [0, 0.6, 0]) if hovered else self.L('button_fill_normal', [0, 0.4, 0])
-                outline_col = self.L('button_outline_hover', 'yellow') if hovered else self.L('button_outline_normal', [0, 0.8, 0])
+                fill_col = self.L('button_fill_hover') if hovered else self.L('button_fill_normal')
+                outline_col = self.L('button_outline_hover') if hovered else self.L('button_outline_normal')
             else:
-                fill_col = self.L('button_fill_disabled', [0.15, 0.15, 0.15])
-                outline_col = self.L('button_outline_disabled', [0.5, 0.5, 0.5])
+                fill_col = self.L('button_fill_disabled')
+                outline_col = self.L('button_outline_disabled')
 
             btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
                                     lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
             remaining = int(max(0, delay - elapsed))
             label_text = button_text if clickable else f"{button_text} ({remaining}s)"
-            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white', font=self.L('font_main', 'Microsoft YaHei'))
+            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white', font=self.L('font_main'))
             btn_rect.draw(); btn_label.draw()
             self.win.flip()
 
@@ -484,21 +476,21 @@ class RavenTask:
 
     def draw_question(self, item_id: str, image_path: str | None):
         # Question area at top center (no border frame)
-        q_w = self.L('question_box_w', 1.4) * self.L('scale_question', 1.584)
-        q_h = self.L('question_box_h', 0.5) * self.L('scale_question', 1.584)
+        q_w = self.L('question_box_w') * self.L('scale_question')
+        q_h = self.L('question_box_h') * self.L('scale_question')
         # Remove the white border box - only draw the image
         if image_path and file_exists_nonempty(image_path):
             try:
-                max_w = q_w - self.L('question_img_margin_w', 0.05)
-                max_h = q_h - self.L('question_img_margin_h', 0.05)
+                max_w = q_w - self.L('question_img_margin_w')
+                max_h = q_h - self.L('question_img_margin_h')
                 disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
-                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.L('question_box_y', 0.35)), size=(disp_w, disp_h))
+                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.L('question_box_y')), size=(disp_w, disp_h))
                 img.draw()
             except Exception:
-                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.L('question_box_y', 0.35)), height=0.06, font=self.L('font_main', 'Microsoft YaHei'))
+                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.L('question_box_y')), height=0.06, font=self.L('font_main'))
                 txt.draw()
         else:
-            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y', 0.35)), height=0.06, font=self.L('font_main', 'Microsoft YaHei'))
+            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y')), height=0.06, font=self.L('font_main'))
             txt.draw()
 
     def create_option_rects(self):
@@ -507,13 +499,13 @@ class RavenTask:
         Returns:
             list[visual.Rect]: Rectangles mapped to option indices in order.
         """
-        cols = int(self.L('option_cols', 4))
-        rows = int(self.L('option_rows', 2))
-        dx = self.L('option_dx', 0.45)
-        dy = self.L('option_dy', 0.45)
-        rect_w = self.L('option_rect_w', 0.4) * self.L('scale_option', 0.749)
-        rect_h = self.L('option_rect_h', 0.35) * self.L('scale_option', 0.749)
-        center_y = self.L('option_grid_center_y', -0.425)
+        cols = int(self.L('option_cols'))
+        rows = int(self.L('option_rows'))
+        dx = self.L('option_dx')
+        dy = self.L('option_dy')
+        rect_w = self.L('option_rect_w') * self.L('scale_option')
+        rect_h = self.L('option_rect_h') * self.L('scale_option')
+        center_y = self.L('option_grid_center_y')
 
         rects: list[visual.Rect] = []
         total_cells = cols * rows
@@ -558,18 +550,18 @@ class RavenTask:
             if i < len(option_paths):
                 path = option_paths[i]
                 if path and file_exists_nonempty(path):
-                    max_w = self.L('option_img_w', 0.36) * self.L('scale_option', 0.749)
-                    max_h = self.L('option_img_h', 0.28) * self.L('scale_option', 0.749)
+                    max_w = self.L('option_img_w') * self.L('scale_option')
+                    max_h = self.L('option_img_h') * self.L('scale_option')
                     disp_w, disp_h = fitted_size_keep_aspect(path, max_w, max_h)
                     img = visual.ImageStim(
                         self.win,
                         image=resolve_path(path),
                         pos=rect.pos,
-                        size=(disp_w * self.L('option_img_fill', 0.92), disp_h * self.L('option_img_fill', 0.92))
+                        size=(disp_w * self.L('option_img_fill'), disp_h * self.L('option_img_fill'))
                     )
                     img.draw()
                 else:
-                    placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray', font=self.L('font_main', 'Microsoft YaHei'))
+                    placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray', font=self.L('font_main'))
                     placeholder.draw()
 
     def detect_click_on_rects(self, rects):
@@ -604,11 +596,11 @@ class RavenTask:
             }
         # formal
         if self.debug_mode:
-            show_t = self.L('debug_timer_show_threshold', 20)
-            red_t = self.L('debug_timer_red_threshold', 10)
+            show_t = self.L('debug_timer_show_threshold')
+            red_t = self.L('debug_timer_red_threshold')
         else:
-            show_t = self.L('formal_timer_show_threshold', 600)
-            red_t = self.L('timer_red_threshold', 300)
+            show_t = self.L('formal_timer_show_threshold')
+            red_t = self.L('timer_red_threshold')
         return {
             'config': self.formal,
             'answers': self.formal_answers,
@@ -765,30 +757,30 @@ class RavenTask:
         Returns:
             visual.Rect: The submit button rectangle for click detection
         """
-        btn_pos = (self.L('button_x', 0.0), self.L('submit_button_y', -0.88))
+        btn_pos = (self.L('button_x'), self.L('submit_button_y'))
         mouse_local = event.Mouse(win=self.win)
-        temp_rect = visual.Rect(self.win, width=self.L('button_width', 0.52),
-                               height=self.L('button_height', 0.14), pos=btn_pos)
+        temp_rect = visual.Rect(self.win, width=self.L('button_width'),
+                               height=self.L('button_height'), pos=btn_pos)
         hovered = temp_rect.contains(mouse_local)
-        fill_col = self.L('button_fill_hover', [0,0.6,0]) if hovered else self.L('button_fill_normal', [0,0.4,0])
-        outline_col = self.L('button_outline_hover', 'yellow') if hovered else self.L('button_outline_normal', [0,0.8,0])
+        fill_col = self.L('button_fill_hover') if hovered else self.L('button_fill_normal')
+        outline_col = self.L('button_outline_hover') if hovered else self.L('button_outline_normal')
 
         submit_rect = visual.Rect(
             self.win,
-            width=self.L('button_width', 0.52),
-            height=self.L('button_height', 0.14),
+            width=self.L('button_width'),
+            height=self.L('button_height'),
             pos=btn_pos,
             lineColor=outline_col,
             fillColor=fill_col,
-            lineWidth=self.L('button_line_width', 4)
+            lineWidth=self.L('button_line_width')
         )
         submit_label = visual.TextStim(
             self.win,
             text='提交作答',
             pos=btn_pos,
-            height=self.L('button_label_height', 0.055),
+            height=self.L('button_label_height'),
             color='white',
-            font=self.L('font_main', 'Microsoft YaHei')
+            font=self.L('font_main')
         )
         submit_rect.draw()
         submit_label.draw()
@@ -819,20 +811,20 @@ class RavenTask:
             return stims, None, None, None, None
 
         count = len(visible)
-        nav_y = self.L('nav_y', 0.90)
-        x_left_edge = self.L('nav_arrow_x_left', -0.98)
-        x_right_edge = self.L('nav_arrow_x_right', 0.98)
-        arrow_w = self.L('nav_arrow_w', 0.09)
-        gap = self.L('nav_gap', 0.02)
+        nav_y = self.L('nav_y')
+        x_left_edge = self.L('nav_arrow_x_left')
+        x_right_edge = self.L('nav_arrow_x_right')
+        arrow_w = self.L('nav_arrow_w')
+        gap = self.L('nav_gap')
 
         x_left = x_left_edge + arrow_w + gap
         x_right = x_right_edge - arrow_w - gap
         span = x_right - x_left
         xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [ (x_left + x_right) / 2.0 ]
 
-        item_w = self.L('nav_item_w', 0.11)
-        item_h = self.L('nav_item_h', 0.07)
-        label_h = self.L('nav_label_height', 0.036)
+        item_w = self.L('nav_item_w')
+        item_h = self.L('nav_item_h')
+        label_h = self.L('nav_label_height')
 
         for i, gi in enumerate(visible):
             answered = items[gi]['id'] in answers_dict
@@ -855,13 +847,13 @@ class RavenTask:
                 height=label_h,
                 color='black' if answered else 'white',
                 bold=answered,
-                font=self.L('font_main', 'Microsoft YaHei')
+                font=self.L('font_main')
             )
             stims.append((gi, rect, label))
 
         left_rect = left_txt = right_rect = right_txt = None
         arrow_h = item_h
-        arrow_label_h = self.L('nav_arrow_label_height', 0.05)
+        arrow_label_h = self.L('nav_arrow_label_height')
         if start > 0:
             left_rect = visual.Rect(
                 self.win,
@@ -878,7 +870,7 @@ class RavenTask:
                 pos=(x_left_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
-                font=self.L('font_main', 'Microsoft YaHei')
+                font=self.L('font_main')
             )
         if end < n:
             right_rect = visual.Rect(
@@ -896,7 +888,7 @@ class RavenTask:
                 pos=(x_right_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
-                font=self.L('font_main', 'Microsoft YaHei')
+                font=self.L('font_main')
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
@@ -1015,195 +1007,30 @@ def get_participant_info():
         gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
 
 
-def detect_screen_resolution():
-    """
-    Detect the primary screen resolution.
-    Returns (width, height) tuple or None if detection fails.
-    """
-    try:
-        # Try using PsychoPy's built-in monitor info first
-        from psychopy import monitors
-        mon_names = monitors.getAllMonitors()
-        if mon_names:
-            mon = monitors.Monitor(mon_names[0])
-            size = mon.getSizePix()
-            if size and len(size) >= 2 and size[0] > 0:
-                return int(size[0]), int(size[1])
-    except Exception:
-        pass
-
-    # Fallback: try tkinter
-    try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.withdraw()
-        width = root.winfo_screenwidth()
-        height = root.winfo_screenheight()
-        root.destroy()
-        if width > 0 and height > 0:
-            return width, height
-    except Exception:
-        pass
-
-    return None
-
-
-def suggest_layout_for_resolution(width, height):
-    """
-    Generate suggested layout parameters based on screen resolution.
-
-    Args:
-        width: screen width in pixels
-        height: screen height in pixels
-
-    Returns:
-        dict with layout parameters
-    """
-    aspect_ratio = width / height if height > 0 else 1.0
-
-    # Base suggestions (updated: question +32%, options -~20% from original baseline, with +10% tweak)
-    layout = {
-        "scale_question": 1.584,
-        "scale_option": 0.749,  # baseline options enlarged additional ~5%
-        "nav_y": 0.90,
-        "header_y": 0.82,
-        "option_grid_center_y": -0.425
-    }
-
-    # Adjust for different screen sizes
-    # High resolution (>1920px width): can use larger elements
-    if width >= 2560:
-        layout["scale_question"] = 1.848  # unchanged question high-res
-        layout["scale_option"] = 0.832    # 0.792 * 1.05
-    elif width >= 1920:
-        layout["scale_question"] = 1.716
-        layout["scale_option"] = 0.79    # 0.752 * 1.05
-    elif width < 1280:
-        # Small screen: reduce sizes while keeping slight enlargement
-        layout["scale_question"] = 1.32
-        layout["scale_option"] = 0.665   # 0.633 * 1.05
-        layout["option_grid_center_y"] = -0.35
-
-    # Adjust for ultra-wide screens (aspect ratio > 2.0)
-        if aspect_ratio > 2.0:
-            layout["option_grid_center_y"] = -0.3
-        elif aspect_ratio < 1.3:
-            # Adjust for narrow/portrait screens
-            layout["nav_y"] = 0.92
-            layout["header_y"] = 0.85
-            layout["option_grid_center_y"] = -0.5
-
-    return layout
-
-
-def update_config_with_layout(layout_path, layout_params):
-    """
-    Write layout parameters to a dedicated layout config file.
-    Creates a backup of the original layout file if present.
-    Returns the layout dict that was written.
-    """
-    os.makedirs(os.path.dirname(layout_path), exist_ok=True)
-
-    # Backup existing layout file once
-    if os.path.exists(layout_path):
-        try:
-            with open(layout_path, 'r', encoding='utf-8') as f:
-                existing = json.load(f)
-        except Exception:
-            existing = None
-        if existing is not None:
-            backup_path = layout_path + '.backup'
-            if not os.path.exists(backup_path):
-                with open(backup_path, 'w', encoding='utf-8') as bf:
-                    json.dump(existing, bf, indent=2, ensure_ascii=False)
-
-    with open(layout_path, 'w', encoding='utf-8') as f:
-        json.dump(layout_params, f, indent=2, ensure_ascii=False)
-
-    return layout_params
-
-
-def check_and_suggest_layout(config_path):
-    """
-    Load base config and a separate layout config file if present.
-    If layout file is missing, optionally suggest one based on screen resolution.
-    Returns combined config dict with a 'layout' key populated from the layout file.
-    """
+def load_config_with_layout(config_path):
+    """从 items.json 读取主配置，并加载独立的 layout.json（外部优先，其次内置）。"""
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
 
-    # Try load layout file with override precedence:
-    # 1) If running as exe and '<exe_dir>/configs/layout.json' exists, use it
-    # 2) Else, use bundled BASE_DIR 'configs/layout.json' if exists
-    layout = None
+    # 加载布局（严格模式）
     override_layout_path = _get_exe_override_path(os.path.join('configs', 'layout.json'))
-    tried_paths = []
     for candidate in [override_layout_path, LAYOUT_CONFIG_PATH]:
-        if not candidate:
-            continue
-        tried_paths.append(candidate)
-        if os.path.exists(candidate):
-            try:
-                with open(candidate, 'r', encoding='utf-8') as lf:
-                    layout = json.load(lf)
-                if candidate == override_layout_path:
-                    print(f"使用外部布局文件覆盖默认: {candidate}")
-                else:
-                    print(f"使用独立布局文件: {os.path.basename(candidate)}")
-                break
-            except Exception:
-                layout = None
-    # Note: legacy 'raven_layout.json' migration removed
+        if candidate and os.path.exists(candidate):
+            with open(candidate, 'r', encoding='utf-8') as lf:
+                layout = json.load(lf)
+            config['layout'] = layout
+            return config
 
-    # Backward compatibility: fallback to embedded layout
-    if layout is None:
-        embedded = config.get('layout')
-        if embedded:
-            layout = embedded
-            # Optional: migrate to standalone file (prefer external target if frozen)
-            try:
-                target_path = override_layout_path or LAYOUT_CONFIG_PATH
-                update_config_with_layout(target_path, layout)
-                print("已从主配置迁移布局到独立文件")
-            except Exception:
-                pass
-
-    # If still no layout, suggest based on resolution
-    if not layout:
-        resolution = detect_screen_resolution()
-        if resolution:
-            width, height = resolution
-            print(f"检测到屏幕分辨率: {width}x{height}")
-            print("未找到布局文件，正在生成建议参数...")
-            suggested = suggest_layout_for_resolution(width, height)
-            print(f"建议的布局参数:\n{json.dumps(suggested, indent=2, ensure_ascii=False)}")
-
-            dlg = gui.Dlg(title='布局建议')
-            dlg.addText(f'检测到屏幕分辨率: {width}x{height}')
-            dlg.addText('建议应用自动优化的布局参数')
-            dlg.addText(f'scale_question: {suggested["scale_question"]}')
-            dlg.addText(f'scale_option: {suggested["scale_option"]}')
-            dlg.addField('应用建议布局?', initial=True)
-            result = dlg.show()
-
-            if dlg.OK and result and result[0]:
-                layout = update_config_with_layout(LAYOUT_CONFIG_PATH, suggested)
-                print("✓ 已将建议布局参数写入独立布局文件")
-            else:
-                print("已跳过布局优化，使用内置默认参数")
-                layout = suggested  # still use suggested for current run
-        else:
-            print("无法检测屏幕分辨率，使用默认布局参数")
-            layout = suggest_layout_for_resolution(1920, 1080)
-
-    # Compose combined config for downstream code
-    config['layout'] = layout
-    return config
+    raise RuntimeError(
+        "未找到布局配置文件 configs/layout.json。请在以下任一路径提供该文件：\n"
+        f"- 可执行文件同目录: {override_layout_path}\n"
+        f"- 内置/开发路径: {LAYOUT_CONFIG_PATH}"
+    )
 
 
 def main():
-    # Check and suggest layout based on screen resolution
-    config = check_and_suggest_layout(CONFIG_PATH)
+    # 严格从 configs 读取布局
+    config = load_config_with_layout(CONFIG_PATH)
 
     # Retry loop for participant info
     while True:
