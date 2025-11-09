@@ -126,7 +126,6 @@ class RavenTask:
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
-        self.current_formal_index = 0
         self.in_practice = True
         # Enable debug mode if configured OR if participant_id is "0"
         pid = str(self.participant_info.get('participant_id', '')).strip()
@@ -136,10 +135,9 @@ class RavenTask:
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
         self.submit_visible = False
-        # navigation state
-        self.current_practice_index = 0
-        self.practice_nav_offset = 0
-        self.formal_nav_offset = 0
+        # navigation state (unified for both practice and formal)
+        self.current_index = 0
+        self.nav_offset = 0
         self.max_visible_nav = 12
         # Layout tuning (can be overridden in config.layout)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
@@ -504,8 +502,8 @@ class RavenTask:
             section: 'practice' or 'formal'
 
         Returns:
-            dict with keys: config, answers, deadline, current_index_attr, nav_offset_attr,
-                           show_submit, auto_save_on_timeout, timer_show_threshold, timer_red_threshold
+            dict with keys: config, answers, deadline, show_submit, auto_save_on_timeout,
+                           timer_show_threshold, timer_red_threshold
         """
         if section == 'practice':
             show_t = self.practice_timer_show_threshold
@@ -514,8 +512,6 @@ class RavenTask:
                 'config': self.practice,
                 'answers': self.practice_answers,
                 'deadline': self.practice_deadline,
-                'current_index_attr': 'current_practice_index',
-                'nav_offset_attr': 'practice_nav_offset',
                 'show_submit': False,
                 'auto_save_on_timeout': False,
                 'timer_show_threshold': show_t,
@@ -530,8 +526,6 @@ class RavenTask:
                 'config': self.formal,
                 'answers': self.formal_answers,
                 'deadline': self.formal_deadline,
-                'current_index_attr': 'current_formal_index',
-                'nav_offset_attr': 'formal_nav_offset',
                 'show_submit': True,
                 'auto_save_on_timeout': True,
                 'timer_show_threshold': show_t,
@@ -582,18 +576,14 @@ class RavenTask:
 
         answers = cfg['answers']
         deadline = cfg['deadline']
-        current_index_attr = cfg['current_index_attr']
-        nav_offset_attr = cfg['nav_offset_attr']
 
         # Main loop
         while core.getTime() < deadline:
-            current_index = getattr(self, current_index_attr)
-            nav_offset = getattr(self, nav_offset_attr)
-            item = items[current_index]
+            item = items[self.current_index]
 
             # Draw navigation bar
             nav_items, l_rect, l_txt, r_rect, r_txt = self._build_navigation(
-                items, answers, current_index, nav_offset)
+                items, answers, self.current_index, self.nav_offset)
             for _, rect, label in nav_items:
                 rect.draw(); label.draw()
             if l_rect: l_rect.draw(); l_txt.draw()
@@ -644,17 +634,16 @@ class RavenTask:
                     # For formal, stay in loop to show submit button
                 else:
                     # Find next unanswered item
-                    next_index = self._find_next_unanswered(items, answers, current_index)
-                    setattr(self, current_index_attr, next_index)
-                    setattr(self, nav_offset_attr, self._center_offset(next_index, n_items))
+                    next_index = self._find_next_unanswered(items, answers, self.current_index)
+                    self.current_index = next_index
+                    self.nav_offset = self._center_offset(next_index, n_items)
                 continue
 
             # Handle navigation click
             nav_action = self._handle_navigation_click(nav_items, l_rect, r_rect, section)
             if nav_action == 'jump':
                 # center only when direct jump
-                new_offset = self._center_offset(getattr(self, current_index_attr), n_items)
-                setattr(self, nav_offset_attr, new_offset)
+                self.nav_offset = self._center_offset(self.current_index, n_items)
                 continue
             if nav_action == 'page':
                 # page only moved the visible window; keep current index unchanged
@@ -695,11 +684,12 @@ class RavenTask:
 
     # ---------- Practice and Formal wrappers ----------
     def run_practice(self):
-        self.current_practice_index = 0
-        self.practice_nav_offset = 0
+        self.current_index = 0
+        self.nav_offset = 0
         self._run_test_section('practice')
 
     def run_formal(self):
+        # Note: current_index is already set from practice or initialized at 0
         self._run_test_section('formal')
 
     # ---------- Navigation Helpers (new) ----------
@@ -754,29 +744,20 @@ class RavenTask:
         if any(mouse.getPressed()):
             if left_rect and left_rect.contains(mouse):
                 while any(mouse.getPressed()): core.wait(0.01)
-                if section == 'formal':
-                    self.formal_nav_offset = max(0, self.formal_nav_offset - self.max_visible_nav)
-                else:
-                    self.practice_nav_offset = max(0, self.practice_nav_offset - self.max_visible_nav)
+                self.nav_offset = max(0, self.nav_offset - self.max_visible_nav)
                 return 'page'
             if right_rect and right_rect.contains(mouse):
                 while any(mouse.getPressed()): core.wait(0.01)
-                if section == 'formal':
-                    max_off = max(0, len(self.formal['items']) - self.max_visible_nav)
-                    self.formal_nav_offset = min(max_off, self.formal_nav_offset + self.max_visible_nav)
-                else:
-                    max_off = max(0, len(self.practice['items']) - self.max_visible_nav)
-                    self.practice_nav_offset = min(max_off, self.practice_nav_offset + self.max_visible_nav)
+                items = self.formal['items'] if section == 'formal' else self.practice['items']
+                max_off = max(0, len(items) - self.max_visible_nav)
+                self.nav_offset = min(max_off, self.nav_offset + self.max_visible_nav)
                 return 'page'
             for gi, rect, label in nav_items:
                 if rect.contains(mouse) or label.contains(mouse):
                     while any(mouse.getPressed()): core.wait(0.01)
-                    if section == 'formal':
-                        self.current_formal_index = gi
-                        self.formal_nav_offset = self._center_offset(self.current_formal_index, len(self.formal['items']))
-                    else:
-                        self.current_practice_index = gi
-                        self.practice_nav_offset = self._center_offset(self.current_practice_index, len(self.practice['items']))
+                    self.current_index = gi
+                    items = self.formal['items'] if section == 'formal' else self.practice['items']
+                    self.nav_offset = self._center_offset(self.current_index, len(items))
                     return 'jump'
         return None
 
