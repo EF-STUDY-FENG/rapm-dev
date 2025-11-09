@@ -11,6 +11,7 @@ Features:
 Dependencies: psychopy
 """
 from psychopy import visual, event, core, gui
+import platform
 try:
     from PIL import Image as PILImage  # for reading image size to preserve aspect ratio
 except Exception:
@@ -179,6 +180,16 @@ class RavenTask:
         self.formal_start_time = None
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
         self.layout = dict(layout_cfg)  # layout overrides
+        # Set default UI font with platform-specific fallback if not provided
+        try:
+            sysname = platform.system()
+        except Exception:
+            sysname = 'Windows'
+        default_font = 'Microsoft YaHei' if sysname == 'Windows' else (
+            'PingFang SC' if sysname == 'Darwin' else 'Noto Sans CJK SC'
+        )
+        if not self.layout.get('font_main'):
+            self.layout['font_main'] = default_font
 
         try:
             answers_file = config.get('answers_file')
