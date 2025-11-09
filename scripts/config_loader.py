@@ -51,20 +51,36 @@ def load_sequence(sequence_path: str | None = None) -> dict:
 
 
 def load_layout() -> dict:
-    """Load layout.json with external-override precedence.
+    """Load layout.json with external-override precedence and parameter merging.
 
     Search order:
-    1) <exe_dir>/configs/layout.json (when frozen)
-    2) <BASE_DIR>/configs/layout.json
+    1) Load defaults from <BASE_DIR>/configs/layout.json (must exist)
+    2) If running as frozen exe, load overrides from <exe_dir>/configs/layout.json
+    3) Merge: override parameters take precedence, missing ones use defaults
     """
+    # Step 1: Load the default layout (required baseline)
+    if not os.path.exists(LAYOUT_DEFAULT_PATH):
+        raise RuntimeError(
+            f"未找到默认布局配置文件: {LAYOUT_DEFAULT_PATH}\n"
+            "这是必需的基础配置文件，请确保项目中包含此文件。"
+        )
+
+    with open(LAYOUT_DEFAULT_PATH, 'r', encoding='utf-8') as f:
+        layout = json.load(f)
+
+    # Step 2: Check for external override (only when frozen)
     override_path = _get_exe_override_path(os.path.join('configs', 'layout.json'))
-    candidates = [p for p in [override_path, LAYOUT_DEFAULT_PATH] if p]
-    for p in candidates:
-        if os.path.exists(p):
-            with open(p, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    raise RuntimeError(
-        "未找到布局配置文件 configs/layout.json。请在以下任一路径提供该文件：\n"
-        f"- 可执行文件同目录: {override_path}\n"
-        f"- 内置/开发路径: {LAYOUT_DEFAULT_PATH}"
-    )
+    if override_path and os.path.exists(override_path):
+        try:
+            with open(override_path, 'r', encoding='utf-8') as f:
+                overrides = json.load(f)
+            # Step 3: Merge overrides into defaults (overrides take precedence)
+            layout.update(overrides)
+        except Exception as e:
+            # If override file is malformed, warn but continue with defaults
+            import warnings
+            warnings.warn(
+                f"外部布局配置文件格式错误，将使用默认配置: {override_path}\n错误: {e}"
+            )
+
+    return layout

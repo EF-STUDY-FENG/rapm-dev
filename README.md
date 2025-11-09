@@ -171,7 +171,28 @@ CSV 列：
 
 ### 布局微调 (layout)
 
-布局参数位于独立文件 `configs/layout.json`（必须存在且键齐全）。运行时会优先使用与可执行文件同目录的 `configs/layout.json` 覆盖内置；若缺失将直接报错。常用键示例：
+布局参数位于独立文件 `configs/layout.json`（必须存在）。
+
+#### 外部参数覆盖机制
+
+程序支持灵活的参数覆盖策略：
+
+1. **基准配置**：内置的 `configs/layout.json` 包含所有必需参数（必须存在）
+2. **外部覆盖**：可执行文件同目录的 `configs/layout.json` 可以只包含需要修改的参数
+3. **自动合并**：外部文件中的参数会覆盖默认值，缺失的参数自动使用默认值
+
+**示例**：如果只想修改字体和题干缩放，外部 `configs/layout.json` 只需：
+
+```jsonc
+{
+  "font_main": "SimHei",
+  "scale_question": 1.7
+}
+```
+
+所有其他参数（如 `scale_option`、`nav_y` 等）将自动使用内置默认值。
+
+#### 常用布局参数
 
 ```jsonc
 {
@@ -204,8 +225,6 @@ CSV 列：
 ```
 
 进度文本将以 `header_y` 为纵坐标、在右侧显示，并与右箭头矩形左边缘保持 `progress_right_margin` 的水平距离；文本尝试右对齐（若 PsychoPy 版本不支持则忽略）。
-
-> 严格配置策略：本项目不再自动生成/建议布局参数。若缺少 `configs/layout.json` 或键不完整，将直接报错，请手工编辑该文件。
 
 ### Debug 模式
 

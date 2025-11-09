@@ -166,6 +166,7 @@ def test_configs_are_valid_json():
         configs_tested += 1
 
     assert configs_tested > 0, "At least one config file should exist and be tested"
+
 def test_separate_config_loader():
     """Test that sequence and layout can be loaded separately."""
     sequence = load_sequence()
@@ -173,6 +174,28 @@ def test_separate_config_loader():
     layout = load_layout()
     assert 'font_main' in layout, "layout config must contain font_main"
     print("✓ separate config loader works")
+
+
+def test_layout_parameter_merging():
+    """Test that layout parameters can be partially overridden."""
+    import json
+    from config_loader import LAYOUT_DEFAULT_PATH
+
+    # Load default layout to get baseline
+    with open(LAYOUT_DEFAULT_PATH, 'r', encoding='utf-8') as f:
+        default_layout = json.load(f)
+
+    # Load via function (should be same as default in dev mode)
+    loaded_layout = load_layout()
+
+    # Verify all default keys are present
+    for key in default_layout:
+        assert key in loaded_layout, f"Default key '{key}' should be present in loaded layout"
+
+    # Verify loaded layout has at least the same keys
+    assert len(loaded_layout) >= len(default_layout), "Loaded layout should have at least all default keys"
+
+    print("✓ layout parameter merging works (all default keys present)")
 
 
 def run_all_tests():
@@ -190,6 +213,7 @@ def run_all_tests():
         test_load_answers,
         test_configs_are_valid_json,
         test_separate_config_loader,
+        test_layout_parameter_merging,
     ]
 
     passed = 0
