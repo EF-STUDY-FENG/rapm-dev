@@ -1,56 +1,15 @@
 {
+  "answers_file": "stimuli/answers.txt",
   "practice": {
     "set": "I",
     "time_limit_minutes": 10,
-    "items": [
-      {
-        "id": "P1",
-        "question_image": "stimuli/placeholder.png",
-        "options": [
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png"
-        ]
-      }
-    ]
+    "count": 12,
+    "pattern": "stimuli/images/RAPM_t{XX}-{Y}.jpg"
   },
   "formal": {
     "set": "II",
     "time_limit_minutes": 40,
-    "items": [
-      {
-        "id": "F1",
-        "question_image": "stimuli/placeholder.png",
-        "options": [
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png"
-        ]
-      },
-      {
-        "id": "F2",
-        "question_image": "stimuli/placeholder.png",
-        "options": [
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png",
-          "stimuli/placeholder.png"
-        ]
-      }
-    ]
+    "count": 36,
+    "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg"
   }
 }

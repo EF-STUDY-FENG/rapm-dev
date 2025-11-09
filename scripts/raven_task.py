@@ -18,6 +18,7 @@ from datetime import datetime
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'configs', 'raven_config.json')
 DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
 def file_exists_nonempty(path: str) -> bool:
@@ -25,6 +26,51 @@ def file_exists_nonempty(path: str) -> bool:
         return os.path.isfile(path) and os.path.getsize(path) > 0
     except Exception:
         return False
+
+
+def resolve_path(p: str) -> str:
+    """Resolve a possibly relative path to project root."""
+    if os.path.isabs(p):
+        return p
+    return os.path.join(BASE_DIR, p)
+
+
+def load_answers(answer_file: str) -> list[int]:
+    path = resolve_path(answer_file)
+    answers: list[int] = []
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            s = line.strip()
+            if not s:
+                continue
+            try:
+                answers.append(int(s))
+            except ValueError:
+                continue
+    return answers
+
+
+def build_items_from_pattern(pattern: str, count: int, answers: list[int], start_index: int, section_prefix: str) -> list[dict]:
+    """Build items list using pattern like 'stimuli/images/RAPM_t{XX}-{Y}.jpg'.
+    - XX: zero-padded item index (01..)
+    - Y:  option index (0 for question, 1..8 for options)
+    """
+    items: list[dict] = []
+    for i in range(1, count + 1):
+        XX = f"{i:02d}"
+        q_path = pattern.replace('{XX}', XX).replace('{Y}', '0')
+        option_paths = [pattern.replace('{XX}', XX).replace('{Y}', str(opt)) for opt in range(1, 9)]
+        correct = None
+        idx = start_index + (i - 1)
+        if 0 <= idx < len(answers):
+            correct = answers[idx]
+        items.append({
+            'id': f"{section_prefix}{XX}",
+            'question_image': q_path,
+            'options': option_paths,
+            'correct': correct
+        })
+    return items
 
 
 class RavenTask:
@@ -44,6 +90,24 @@ class RavenTask:
         # top navigation pagination offset (for many items)
         self.nav_offset = 0
         self.max_visible_nav = 12
+
+        # If config uses patterns + answers, generate items accordingly
+        try:
+            answers_file = config.get('answers_file')
+        except AttributeError:
+            answers_file = None
+        if answers_file:
+            answers = load_answers(answers_file)
+            # practice
+            p_count = int(self.practice.get('count', 0))
+            p_pattern = self.practice.get('pattern')
+            if p_count and p_pattern:
+                self.practice['items'] = build_items_from_pattern(p_pattern, p_count, answers, 0, 'P')
+            # formal (offset after practice)
+            f_count = int(self.formal.get('count', 0))
+            f_pattern = self.formal.get('pattern')
+            if f_count and f_pattern:
+                self.formal['items'] = build_items_from_pattern(f_pattern, f_count, answers, p_count, 'F')
 
     def run(self):
         """Main entry point: run practice then formal test"""
