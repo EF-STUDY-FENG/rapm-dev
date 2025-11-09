@@ -146,6 +146,8 @@ class RavenTask:
         self.nav_arrow_x_right = float(layout_cfg.get('nav_arrow_x_right', 0.98))
         self.nav_arrow_x_left = float(layout_cfg.get('nav_arrow_x_left', -0.98))
         self.nav_arrow_w = float(layout_cfg.get('nav_arrow_w', 0.09))
+        # Gap between arrows and the first/last nav item to visually separate them
+        self.nav_gap = float(layout_cfg.get('nav_gap', 0.02))
         self.progress_right_margin = float(layout_cfg.get('progress_right_margin', 0.01))
         self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
         self.option_cols = int(layout_cfg.get('option_cols', 4))
@@ -699,8 +701,9 @@ class RavenTask:
             return stims, None, None, None, None
         count = len(visible)
         # Reserve horizontal space between left/right arrows according to configured positions/width
-        x_left = self.nav_arrow_x_left + self.nav_arrow_w
-        x_right = self.nav_arrow_x_right - self.nav_arrow_w
+        # Add nav_gap to visually separate arrows from the nav items
+        x_left = self.nav_arrow_x_left + self.nav_arrow_w + self.nav_gap
+        x_right = self.nav_arrow_x_right - self.nav_arrow_w - self.nav_gap
         span = x_right - x_left
         xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [0.0]
         for i, gi in enumerate(visible):
@@ -709,7 +712,11 @@ class RavenTask:
                                lineColor='yellow' if gi == current_index else 'white',
                                lineWidth=3,
                                fillColor=(0, 0.45, 0) if answered else None)
-            label = visual.TextStim(self.win, text=items[gi]['id'], pos=(xs[i], self.nav_y), height=0.036,
+            # Show only numeric sequence (drop section prefix like 'P'/'F' and leading zeros)
+            _raw_id = items[gi]['id'] or ''
+            _digits = ''.join([ch for ch in _raw_id if ch.isdigit()])
+            _label_txt = str(int(_digits)) if _digits else _raw_id
+            label = visual.TextStim(self.win, text=_label_txt, pos=(xs[i], self.nav_y), height=0.036,
                                     color='black' if answered else 'white', bold=answered)
             stims.append((gi, rect, label))
         left_rect = left_txt = right_rect = right_txt = None
