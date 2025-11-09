@@ -273,7 +273,8 @@ class RavenTask:
             text=timer_text,
             pos=(0, self.L('header_y', 0.82)),
             height=self.L('header_font_size', 0.04),
-            color=color
+            color=color,
+            font=self.L('font_main', 'Microsoft YaHei')
         )
         timerStim.draw()
 
@@ -300,7 +301,7 @@ class RavenTask:
         for i, text in enumerate(lines):
             y = start_y - i * (line_height * spacing)
             color = (colors[i] if (colors and i < len(colors)) else 'white')
-            stim = visual.TextStim(self.win, text=text or '', pos=(x, y), height=line_height, color=color)
+            stim = visual.TextStim(self.win, text=text or '', pos=(x, y), height=line_height, color=color, font=self.L('font_main', 'Microsoft YaHei'))
             # try bold if available
             try:
                 if bold_idx and i in bold_idx:
@@ -323,7 +324,7 @@ class RavenTask:
         # Align progress left edge to the left edge of the right arrow box (with a small margin)
         right_edge_x = self.L('nav_arrow_x_right', 0.98) - (self.L('nav_arrow_w', 0.09) / 2.0)
         x = right_edge_x - self.L('progress_right_margin', 0.01)
-        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.L('header_font_size', 0.04), color=color)
+        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.L('header_font_size', 0.04), color=color, font=self.L('font_main', 'Microsoft YaHei'))
         try:
             progStim.anchorHoriz = 'right'
         except Exception:
@@ -390,7 +391,7 @@ class RavenTask:
                                     lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
             remaining = int(max(0, delay - elapsed))
             label_text = button_text if clickable else f"{button_text} ({remaining}s)"
-            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white')
+            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white', font=self.L('font_main', 'Microsoft YaHei'))
             btn_rect.draw(); btn_label.draw()
             self.win.flip()
 
@@ -412,10 +413,10 @@ class RavenTask:
                 img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.L('question_box_y', 0.35)), size=(disp_w, disp_h))
                 img.draw()
             except Exception:
-                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.L('question_box_y', 0.35)), height=0.06)
+                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.L('question_box_y', 0.35)), height=0.06, font=self.L('font_main', 'Microsoft YaHei'))
                 txt.draw()
         else:
-            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y', 0.35)), height=0.06)
+            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y', 0.35)), height=0.06, font=self.L('font_main', 'Microsoft YaHei'))
             txt.draw()
 
     def create_option_rects(self):
@@ -486,7 +487,7 @@ class RavenTask:
                     )
                     img.draw()
                 else:
-                    placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray')
+                    placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray', font=self.L('font_main', 'Microsoft YaHei'))
                     placeholder.draw()
 
     def detect_click_on_rects(self, rects):
@@ -704,7 +705,8 @@ class RavenTask:
             text='提交作答',
             pos=btn_pos,
             height=self.L('button_label_height', 0.055),
-            color='white'
+            color='white',
+            font=self.L('font_main', 'Microsoft YaHei')
         )
         submit_rect.draw()
         submit_label.draw()
@@ -771,6 +773,7 @@ class RavenTask:
                 height=label_h,
                 color='black' if answered else 'white',
                 bold=answered,
+                font=self.L('font_main', 'Microsoft YaHei')
             )
             stims.append((gi, rect, label))
 
@@ -793,6 +796,7 @@ class RavenTask:
                 pos=(x_left_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
+                font=self.L('font_main', 'Microsoft YaHei')
             )
         if end < n:
             right_rect = visual.Rect(
@@ -810,6 +814,7 @@ class RavenTask:
                 pos=(x_right_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
+                font=self.L('font_main', 'Microsoft YaHei')
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
