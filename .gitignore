@@ -49,3 +49,4 @@ results/*
 # Temporary files
 *.tmp
 *.bak
+*.spec
