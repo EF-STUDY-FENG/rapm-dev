@@ -260,8 +260,11 @@ class RavenTask:
                 if temp_rect.contains(mouse):
                     hovered = True
                 if hovered:
-                    fill_col = (0.2, 0.2, 0.2)
+                    fill_col = (0, 0.6, 0)  # Brighter green on hover
                     outline_col = 'yellow'
+                else:
+                    fill_col = (0, 0.4, 0)  # Green when enabled
+                    outline_col = (0, 0.8, 0)  # Green outline
             else:
                 outline_col = (0.5, 0.5, 0.5)
                 fill_col = (0.15, 0.15, 0.15)
