@@ -196,7 +196,11 @@ class RavenTask:
             button_text="开始练习"
         )
         # Set practice deadline now
-        self.practice_deadline = core.getTime() + self.practice['time_limit_minutes'] * 60
+        if self.debug_mode:
+            # Debug: 10 seconds for practice
+            self.practice_deadline = core.getTime() + 10
+        else:
+            self.practice_deadline = core.getTime() + self.practice['time_limit_minutes'] * 60
         self.run_practice()
         # Practice finished
         self.in_practice = False
