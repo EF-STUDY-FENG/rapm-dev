@@ -427,8 +427,10 @@ class RavenTask:
 
             # navigation click
             nav_action = self._handle_navigation_click(nav_items, l_rect, r_rect, 'practice')
-            if nav_action in ('page', 'jump'):
+            if nav_action == 'jump':
                 self.practice_nav_offset = self._center_offset(self.current_practice_index, n_items)
+                continue
+            if nav_action == 'page':
                 continue
 
             if core.getTime() >= self.practice_deadline:
@@ -633,8 +635,12 @@ class RavenTask:
 
             # navigation click
             nav_action = self._handle_navigation_click(nav_items, l_rect, r_rect, 'formal')
-            if nav_action in ('page','jump'):
+            if nav_action == 'jump':
+                # center only when direct jump
                 self.formal_nav_offset = self._center_offset(self.current_formal_index, n_items)
+                continue
+            if nav_action == 'page':
+                # page only moved the visible window; keep current index unchanged
                 continue
 
             if core.getTime() >= self.formal_deadline:
