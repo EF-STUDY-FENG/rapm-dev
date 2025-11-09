@@ -13,8 +13,8 @@
     "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg"
   },
   "layout": {
-     "scale_question": 1.584,
-     "scale_option": 0.648,
+    "scale_question": 1.584,
+    "scale_option": 0.713,
     "nav_y": 0.90,
     "timer_y": 0.82,
     "option_grid_center_y": -0.425
