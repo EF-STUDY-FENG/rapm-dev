@@ -535,7 +535,7 @@ class RavenTask:
 
             if core.getTime() >= self.practice_deadline:
                 break
-        # practice complete
+        # Practice complete (either all answered or time expired)
 
     # ---------- Navigation Helpers (new) ----------
     def _center_offset(self, index: int, total: int) -> int:
@@ -694,14 +694,10 @@ class RavenTask:
 
             if core.getTime() >= self.formal_deadline:
                 break
-        self.show_time_up()
+        # Time expired: auto-submit with current answers
+        self.save_and_exit()
 
     # ---------- End states ----------
-    def show_time_up(self):
-        msg = visual.TextStim(self.win, text='时间结束，未提交。', height=0.07, color='red')
-        for _ in range(180):
-            msg.draw(); self.win.flip()
-
     def save_and_exit(self):
         os.makedirs(DATA_DIR, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
