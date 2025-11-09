@@ -173,16 +173,13 @@ class RavenTask:
         self.button_x = float(layout_cfg.get('button_x', 0.0))
         self.button_label_height = float(layout_cfg.get('button_label_height', 0.055))
         self.button_line_width = int(layout_cfg.get('button_line_width', 4))
-        # Button color set (accept lists or strings)
-        def _col(name, default):
-            val = layout_cfg.get(name, default)
-            return val
-        self.button_fill_disabled = _col('button_fill_disabled', [0.15, 0.15, 0.15])
-        self.button_fill_normal = _col('button_fill_normal', [0, 0.4, 0])
-        self.button_fill_hover = _col('button_fill_hover', [0, 0.6, 0])
-        self.button_outline_disabled = _col('button_outline_disabled', [0.5, 0.5, 0.5])
-        self.button_outline_normal = _col('button_outline_normal', [0, 0.8, 0])
-        self.button_outline_hover = _col('button_outline_hover', 'yellow')
+        # Button color set (can be lists or strings)
+        self.button_fill_disabled = layout_cfg.get('button_fill_disabled', [0.15, 0.15, 0.15])
+        self.button_fill_normal = layout_cfg.get('button_fill_normal', [0, 0.4, 0])
+        self.button_fill_hover = layout_cfg.get('button_fill_hover', [0, 0.6, 0])
+        self.button_outline_disabled = layout_cfg.get('button_outline_disabled', [0.5, 0.5, 0.5])
+        self.button_outline_normal = layout_cfg.get('button_outline_normal', [0, 0.8, 0])
+        self.button_outline_hover = layout_cfg.get('button_outline_hover', 'yellow')
 
         # Submit button Y position (formal only)
         self.submit_button_y = float(layout_cfg.get('submit_button_y', -0.88))
