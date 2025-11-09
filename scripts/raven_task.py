@@ -135,6 +135,26 @@ class RavenTask:
         # top navigation pagination offset (for many items)
         self.nav_offset = 0
         self.max_visible_nav = 12
+        # Layout tuning (can be overridden in config.layout)
+        layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
+        self.scale_question = float(layout_cfg.get('scale_question', 1.2))  # enlarge question area
+        self.scale_option = float(layout_cfg.get('scale_option', 0.9))      # slightly smaller options
+        self.nav_y = float(layout_cfg.get('nav_y', 0.90))
+        self.timer_y = float(layout_cfg.get('timer_y', 0.82))
+        self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
+        self.option_cols = int(layout_cfg.get('option_cols', 4))
+        self.option_rows = int(layout_cfg.get('option_rows', 2))
+        self.dx_base = float(layout_cfg.get('option_dx', 0.45))
+        self.dy_base = float(layout_cfg.get('option_dy', 0.45))
+        self.option_rect_w_base = float(layout_cfg.get('option_rect_w', 0.4))
+        self.option_rect_h_base = float(layout_cfg.get('option_rect_h', 0.35))
+        self.option_img_max_w_base = float(layout_cfg.get('option_img_w', 0.36))
+        self.option_img_max_h_base = float(layout_cfg.get('option_img_h', 0.28))
+        self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
+        self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
+        self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
+        self.question_img_margin_w = float(layout_cfg.get('question_img_margin_w', 0.05))
+        self.question_img_margin_h = float(layout_cfg.get('question_img_margin_h', 0.05))
 
         # If config uses patterns + answers, generate items accordingly
         try:
@@ -167,32 +187,48 @@ class RavenTask:
         mins = remaining // 60
         secs = remaining % 60
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
-        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, 0.82), height=0.04, color='white')
+        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color='white')
         timerStim.draw()
 
     def draw_question(self, item_id: str, image_path: str | None):
         # Question area at top center
-        rect = visual.Rect(self.win, width=1.4, height=0.5, pos=(0, 0.35), lineColor='white', fillColor=None)
+        q_w = self.question_box_w_base * self.scale_question
+        q_h = self.question_box_h_base * self.scale_question
+        rect = visual.Rect(self.win, width=q_w, height=q_h, pos=(0, self.question_box_y), lineColor='white', fillColor=None)
         rect.draw()
         if image_path and file_exists_nonempty(image_path):
             try:
-                disp_w, disp_h = fitted_size_keep_aspect(image_path, 1.35, 0.45)
-                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, 0.35), size=(disp_w, disp_h))
+                max_w = q_w - self.question_img_margin_w
+                max_h = q_h - self.question_img_margin_h
+                disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
+                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.question_box_y), size=(disp_w, disp_h))
                 img.draw()
             except Exception:
-                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, 0.35), height=0.06)
+                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.question_box_y), height=0.06)
                 txt.draw()
         else:
-            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, 0.35), height=0.06)
+            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.question_box_y), height=0.06)
             txt.draw()
 
     def create_option_rects(self):
         rects = []
+        dx = self.dx_base * self.scale_option
+        dy = self.dy_base * self.scale_option
+        cols = self.option_cols
+        rows = self.option_rows
+        total_w = dx * (cols - 1)
+        left = - total_w / 2.0
+        center_y = self.option_grid_center_y
+        rect_w = self.option_rect_w_base * self.scale_option
+        rect_h = self.option_rect_h_base * self.scale_option
+        label_offset = 0.14 * self.scale_option
         for i in range(8):
-            x = -0.7 + (i % 4) * 0.45
-            y = -0.2 - (i // 4) * 0.45
-            rect = visual.Rect(self.win, width=0.4, height=0.35, pos=(x, y), lineColor='white', fillColor=None)
-            label = visual.TextStim(self.win, text=str(i+1), pos=(x, y-0.14), height=0.06)
+            c = i % cols
+            r = i // cols
+            x = left + c * dx
+            y = center_y + ((rows - 1) / 2.0 - r) * dy
+            rect = visual.Rect(self.win, width=rect_w, height=rect_h, pos=(x, y), lineColor='white', fillColor=None)
+            label = visual.TextStim(self.win, text=str(i+1), pos=(x, y - label_offset), height=0.06 * self.scale_option)
             rects.append((rect, label))
         return rects
 
@@ -263,7 +299,7 @@ class RavenTask:
         count = len(visible)
         if count == 0:
             return stims, None, None
-        # Evenly space within [-0.9, 0.9] at y=0.92
+        # Evenly space within [-0.9, 0.9] at nav_y
         x_left, x_right = -0.9, 0.9
         span = x_right - x_left
         if count == 1:
@@ -273,17 +309,17 @@ class RavenTask:
         for i, gi in enumerate(visible):
             item = items[gi]
             answered = item['id'] in self.formal_answers
-            rect = visual.Rect(self.win, width=0.11, height=0.07, pos=(xs[i], 0.92),
+            rect = visual.Rect(self.win, width=0.11, height=0.07, pos=(xs[i], self.nav_y),
                                lineColor='yellow' if gi == self.current_formal_index else 'white',
                                fillColor=(0, 0.4, 0) if answered else None)
-            label = visual.TextStim(self.win, text=item['id'], pos=(xs[i], 0.92), height=0.035,
+            label = visual.TextStim(self.win, text=item['id'], pos=(xs[i], self.nav_y), height=0.035,
                                     color='black' if answered else 'white')
             stims.append((gi, rect, label))
         left_arrow = right_arrow = None
         if self.nav_offset > 0:
-            left_arrow = visual.TextStim(self.win, text='⟵', pos=(-0.98, 0.92), height=0.06, color='white')
+            left_arrow = visual.TextStim(self.win, text='⟵', pos=(-0.98, self.nav_y), height=0.06, color='white')
         if end < n:
-            right_arrow = visual.TextStim(self.win, text='⟶', pos=(0.98, 0.92), height=0.06, color='white')
+            right_arrow = visual.TextStim(self.win, text='⟶', pos=(0.98, self.nav_y), height=0.06, color='white')
         return stims, left_arrow, right_arrow
 
     def handle_top_navigation_click(self, nav_items, left_arrow, right_arrow):
