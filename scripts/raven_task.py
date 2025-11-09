@@ -10,7 +10,7 @@ Features:
 
 Dependencies: psychopy
 """
-from psychopy import visual, event, core
+from psychopy import visual, event, core, gui
 import json
 import os
 import csv
@@ -28,10 +28,11 @@ def file_exists_nonempty(path: str) -> bool:
 
 
 class RavenTask:
-    def __init__(self, win, config):
+    def __init__(self, win, config, participant_info=None):
         self.win = win
         self.practice = config['practice']
         self.formal = config['formal']
+        self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
         self.current_formal_index = 0
@@ -262,13 +263,29 @@ class RavenTask:
         os.makedirs(DATA_DIR, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
+        # write CSV answers with participant id and timestamp
         with open(out_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['section', 'item_id', 'answer'])
+            writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'timestamp'])
+            pid = self.participant_info.get('participant_id', '')
+            tnow = datetime.now().isoformat(timespec='seconds')
             for k, v in self.practice_answers.items():
-                writer.writerow(['practice', k, v])
+                writer.writerow([pid, 'practice', k, v, tnow])
             for k, v in self.formal_answers.items():
-                writer.writerow(['formal', k, v])
+                writer.writerow([pid, 'formal', k, v, tnow])
+        # write a metadata json as well
+        meta = {
+            'participant': self.participant_info,
+            'time_created': datetime.now().isoformat(timespec='seconds'),
+            'practice': {'set': self.practice.get('set'), 'time_limit_minutes': self.practice.get('time_limit_minutes'), 'n_items': len(self.practice.get('items', []))},
+            'formal': {'set': self.formal.get('set'), 'time_limit_minutes': self.formal.get('time_limit_minutes'), 'n_items': len(self.formal.get('items', []))}
+        }
+        meta_path = os.path.join(DATA_DIR, f'raven_session_{ts}.json')
+        try:
+            with open(meta_path, 'w', encoding='utf-8') as mf:
+                json.dump(meta, mf, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
         confirm = visual.TextStim(self.win, text=f'提交成功! 保存于 {out_path}', height=0.05, color='green')
         for _ in range(240):
             confirm.draw(); self.win.flip()
@@ -279,10 +296,41 @@ def load_config(path):
         return json.load(f)
 
 
+def get_participant_info():
+    default = {
+        'participant_id': '',
+        'age': '',
+        'gender': '',
+        'session': 'S1',
+        'notes': ''
+    }
+    while True:
+        dlg = gui.DlgFromDict(default, title='被试信息', order=['participant_id', 'age', 'gender', 'session', 'notes'])
+        if not dlg.OK:
+            return None
+        pid = (default.get('participant_id') or '').strip()
+        if pid:
+            return default
+        # prompt and loop again
+        gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
+
+
 def main():
     config = load_config(CONFIG_PATH)
+    # Retry loop for participant info
+    while True:
+        info = get_participant_info()
+        if info is None:
+            confirm = gui.Dlg(title='确认退出？', labelButtonOK='重试', labelButtonCancel='退出')
+            confirm.addText('未填写信息或已取消。是否重新输入？')
+            confirm.show()
+            if confirm.OK:
+                continue
+            else:
+                return
+        break
     win = visual.Window(size=(1280, 800), color='black', units='norm')
-    task = RavenTask(win, config)
+    task = RavenTask(win, config, participant_info=info)
     task.run()
     win.close()
     core.quit()
