@@ -138,7 +138,7 @@ class RavenTask:
         # Layout tuning (can be overridden in config.layout)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
         self.scale_question = float(layout_cfg.get('scale_question', 1.584))  # enlarge question area (1.2 * 1.32)
-        self.scale_option = float(layout_cfg.get('scale_option', 0.713))      # options +10% from previous 0.648
+        self.scale_option = float(layout_cfg.get('scale_option', 0.749))      # options +5% from previous 0.713
         self.nav_y = float(layout_cfg.get('nav_y', 0.90))
         self.timer_y = float(layout_cfg.get('timer_y', 0.82))
         self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
@@ -221,20 +221,19 @@ class RavenTask:
         center_y = self.option_grid_center_y
         rect_w = self.option_rect_w_base * self.scale_option
         rect_h = self.option_rect_h_base * self.scale_option
-        label_offset = 0.14 * self.scale_option
         for i in range(8):
             c = i % cols
             r = i // cols
             x = left + c * dx
             y = center_y + ((rows - 1) / 2.0 - r) * dy
             rect = visual.Rect(self.win, width=rect_w, height=rect_h, pos=(x, y), lineColor='white', fillColor=None)
-            label = visual.TextStim(self.win, text=str(i+1), pos=(x, y - label_offset), height=0.06 * self.scale_option)
-            rects.append((rect, label))
+            # No numeric labels on options; keep placeholder None for compatibility
+            rects.append((rect, None))
         return rects
 
     def draw_options(self, option_paths, rects, selected_index=None):
         """Draw option rectangles; highlight selected with thicker yellow border."""
-        for idx, (rect, label) in enumerate(rects):
+        for idx, (rect, _label) in enumerate(rects):
             # highlight previously selected
             if selected_index is not None and idx == selected_index:
                 rect.lineColor = 'yellow'
@@ -253,7 +252,6 @@ class RavenTask:
                 except Exception:
                     pass
             rect.draw()
-            label.draw()
 
     def detect_click_on_rects(self, rects):
         mouse = event.Mouse(win=self.win)
@@ -553,7 +551,7 @@ def suggest_layout_for_resolution(width, height):
     # Base suggestions (updated: question +32%, options -~20% from original baseline, with +10% tweak)
     layout = {
         "scale_question": 1.584,
-        "scale_option": 0.713,  # baseline options enlarged ~10% from previous 0.648
+        "scale_option": 0.749,  # baseline options enlarged additional ~5%
         "nav_y": 0.90,
         "timer_y": 0.82,
         "option_grid_center_y": -0.425
@@ -563,14 +561,14 @@ def suggest_layout_for_resolution(width, height):
     # High resolution (>1920px width): can use larger elements
     if width >= 2560:
         layout["scale_question"] = 1.848  # unchanged question high-res
-        layout["scale_option"] = 0.792    # 0.72 * 1.10 (old high-res *1.10)
+        layout["scale_option"] = 0.832    # 0.792 * 1.05
     elif width >= 1920:
         layout["scale_question"] = 1.716
-        layout["scale_option"] = 0.752   # 0.684 *1.10
+        layout["scale_option"] = 0.79    # 0.752 * 1.05
     elif width < 1280:
         # Small screen: reduce sizes while keeping slight enlargement
         layout["scale_question"] = 1.32
-        layout["scale_option"] = 0.633   # 0.576 *1.10
+        layout["scale_option"] = 0.665   # 0.633 * 1.05
         layout["option_grid_center_y"] = -0.35
 
     # Adjust for ultra-wide screens (aspect ratio > 2.0)
