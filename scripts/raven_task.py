@@ -137,8 +137,8 @@ class RavenTask:
         self.max_visible_nav = 12
         # Layout tuning (can be overridden in config.layout)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
-        self.scale_question = float(layout_cfg.get('scale_question', 1.44))  # enlarge question area (+20%)
-        self.scale_option = float(layout_cfg.get('scale_option', 0.72))      # smaller options (-20%)
+        self.scale_question = float(layout_cfg.get('scale_question', 1.584))  # enlarge question area (1.2 * 1.32)
+        self.scale_option = float(layout_cfg.get('scale_option', 0.648))      # smaller options (0.9 * 0.72)
         self.nav_y = float(layout_cfg.get('nav_y', 0.90))
         self.timer_y = float(layout_cfg.get('timer_y', 0.82))
         self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
@@ -546,10 +546,10 @@ def suggest_layout_for_resolution(width, height):
     """
     aspect_ratio = width / height if height > 0 else 1.0
 
-    # Base suggestions (updated: question +20%, options -20% from original baseline)
+        # Base suggestions (updated: question +32%, options -28% from original baseline)
     layout = {
-        "scale_question": 1.44,
-        "scale_option": 0.72,
+           "scale_question": 1.584,
+           "scale_option": 0.648,
         "nav_y": 0.90,
         "timer_y": 0.82,
         "option_grid_center_y": -0.425
@@ -558,15 +558,15 @@ def suggest_layout_for_resolution(width, height):
     # Adjust for different screen sizes
     # High resolution (>1920px width): can use larger elements
     if width >= 2560:
-        layout["scale_question"] = 1.68  # 1.4 * 1.2
-        layout["scale_option"] = 0.80    # 1.0 * 0.8
+        layout["scale_question"] = 1.848  # 1.4 * 1.32
+        layout["scale_option"] = 0.72    # 1.0 * 0.72
     elif width >= 1920:
-        layout["scale_question"] = 1.56  # 1.3 * 1.2
-        layout["scale_option"] = 0.76    # 0.95 * 0.8
+        layout["scale_question"] = 1.716  # 1.3 * 1.32
+        layout["scale_option"] = 0.684   # 0.95 * 0.72
     elif width < 1280:
         # Small screen: reduce sizes
-        layout["scale_question"] = 1.20  # 1.0 * 1.2
-        layout["scale_option"] = 0.64    # 0.8 * 0.8
+        layout["scale_question"] = 1.32  # 1.0 * 1.32
+        layout["scale_option"] = 0.576   # 0.8 * 0.72
         layout["option_grid_center_y"] = -0.35
 
     # Adjust for ultra-wide screens (aspect ratio > 2.0)
