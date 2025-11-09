@@ -11,6 +11,10 @@ Features:
 Dependencies: psychopy
 """
 from psychopy import visual, event, core, gui
+try:
+    from PIL import Image as PILImage  # for reading image size to preserve aspect ratio
+except Exception:
+    PILImage = None
 import json
 import os
 import csv
@@ -23,7 +27,8 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 def file_exists_nonempty(path: str) -> bool:
     try:
-        return os.path.isfile(path) and os.path.getsize(path) > 0
+        p = resolve_path(path)
+        return os.path.isfile(p) and os.path.getsize(p) > 0
     except Exception:
         return False
 
@@ -48,6 +53,46 @@ def load_answers(answer_file: str) -> list[int]:
             except ValueError:
                 continue
     return answers
+
+
+# Cache for image sizes to avoid re-opening files each frame
+_IMG_SIZE_CACHE: dict[str, tuple[int, int]] = {}
+
+
+def get_image_pixel_size(path: str) -> tuple[int, int] | None:
+    if PILImage is None:
+        return None
+    abs_path = resolve_path(path)
+    if abs_path in _IMG_SIZE_CACHE:
+        return _IMG_SIZE_CACHE[abs_path]
+    try:
+        with PILImage.open(abs_path) as im:
+            size = im.size  # (width, height) in pixels
+            _IMG_SIZE_CACHE[abs_path] = size
+            return size
+    except Exception:
+        return None
+
+
+def fitted_size_keep_aspect(path: str, max_w: float, max_h: float) -> tuple[float, float]:
+    """Compute display size (norm units) that fits within max box while preserving aspect ratio."""
+    px = get_image_pixel_size(path)
+    if not px:
+        return max_w, max_h
+    pw, ph = px
+    if pw <= 0 or ph <= 0:
+        return max_w, max_h
+    img_ratio = pw / ph
+    box_ratio = max_w / max_h if max_h > 0 else img_ratio
+    if img_ratio >= box_ratio:
+        # width-limited
+        w = max_w
+        h = w / img_ratio
+    else:
+        # height-limited
+        h = max_h
+        w = h * img_ratio
+    return w, h
 
 
 def build_items_from_pattern(pattern: str, count: int, answers: list[int], start_index: int, section_prefix: str) -> list[dict]:
@@ -131,7 +176,8 @@ class RavenTask:
         rect.draw()
         if image_path and file_exists_nonempty(image_path):
             try:
-                img = visual.ImageStim(self.win, image=image_path, pos=(0, 0.35), size=(1.35, 0.45))
+                disp_w, disp_h = fitted_size_keep_aspect(image_path, 1.35, 0.45)
+                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, 0.35), size=(disp_w, disp_h))
                 img.draw()
             except Exception:
                 txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, 0.35), height=0.06)
@@ -162,7 +208,8 @@ class RavenTask:
                 rect.lineWidth = 2
             if idx < len(option_paths) and file_exists_nonempty(option_paths[idx]):
                 try:
-                    img = visual.ImageStim(self.win, image=option_paths[idx], pos=rect.pos, size=(0.36, 0.28))
+                    disp_w, disp_h = fitted_size_keep_aspect(option_paths[idx], 0.36, 0.28)
+                    img = visual.ImageStim(self.win, image=resolve_path(option_paths[idx]), pos=rect.pos, size=(disp_w, disp_h))
                     img.draw()
                 except Exception:
                     pass
