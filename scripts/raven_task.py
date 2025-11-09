@@ -176,6 +176,25 @@ class RavenTask:
         self.instruction_line_spacing = float(layout_cfg.get('instruction_line_spacing', 1.5))
         # Instruction button delay (seconds) before enabling click
         self.instruction_button_delay = float(layout_cfg.get('instruction_button_delay', 5.0))
+        # Instruction screen layout (reduce magic numbers in show_instruction)
+        self.instruction_center_y = float(layout_cfg.get('instruction_center_y', 0.15))
+        self.instruction_line_height = float(layout_cfg.get('instruction_line_height', 0.055))
+        self.instruction_button_width = float(layout_cfg.get('instruction_button_width', 0.52))
+        self.instruction_button_height = float(layout_cfg.get('instruction_button_height', 0.14))
+        self.instruction_button_x = float(layout_cfg.get('instruction_button_x', 0.0))
+        self.instruction_button_y = float(layout_cfg.get('instruction_button_y', -0.38))
+        self.instruction_button_label_height = float(layout_cfg.get('instruction_button_label_height', 0.055))
+        self.instruction_button_line_width = int(layout_cfg.get('instruction_button_line_width', 4))
+        # Instruction button color set (accept lists or strings)
+        def _col(name, default):
+            val = layout_cfg.get(name, default)
+            return val
+        self.instruction_button_fill_disabled = _col('instruction_button_fill_disabled', [0.15, 0.15, 0.15])
+        self.instruction_button_fill_enabled = _col('instruction_button_fill_enabled', [0, 0.4, 0])
+        self.instruction_button_fill_hover = _col('instruction_button_fill_hover', [0, 0.6, 0])
+        self.instruction_button_outline_disabled = _col('instruction_button_outline_disabled', [0.5, 0.5, 0.5])
+        self.instruction_button_outline_enabled = _col('instruction_button_outline_enabled', [0, 0.8, 0])
+        self.instruction_button_outline_hover = _col('instruction_button_outline_hover', 'yellow')
         self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
         self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
         self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
@@ -262,6 +281,38 @@ class RavenTask:
         timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.header_y), height=self.header_font_size, color=color)
         timerStim.draw()
 
+    def draw_multiline(self, lines, center_y: float, line_height: float, spacing: float = 1.5,
+                       colors: list | None = None, bold_idx: set[int] | None = None,
+                       x: float = 0.0):
+        """Draw multiple lines with custom line spacing centered vertically around center_y.
+
+        Args:
+            lines: sequence of strings to draw in order
+            center_y: vertical center in norm units
+            line_height: height for each line
+            spacing: line spacing multiplier (e.g., 1.5)
+            colors: optional list of per-line colors (fallback 'white')
+            bold_idx: optional set of line indices to render bold
+            x: horizontal position (default center)
+        """
+        lines = list(lines or [])
+        n = len(lines)
+        if n == 0:
+            return
+        total = line_height * spacing * (n - 1) if n > 1 else 0.0
+        start_y = center_y + total / 2.0
+        for i, text in enumerate(lines):
+            y = start_y - i * (line_height * spacing)
+            color = (colors[i] if (colors and i < len(colors)) else 'white')
+            stim = visual.TextStim(self.win, text=text or '', pos=(x, y), height=line_height, color=color)
+            # try bold if available
+            try:
+                if bold_idx and i in bold_idx:
+                    stim.bold = True
+            except Exception:
+                pass
+            stim.draw()
+
     def draw_progress(self, answered_count: int, total_count: int):
         """Draw answered/total progress indicator.
 
@@ -305,58 +356,46 @@ class RavenTask:
         """Display centered multi-line instruction with a styled button.
         Button becomes clickable only after self.instruction_button_delay seconds.
         """
-        # Precompute lines layout
-        center_y = 0.15
-        line_h = 0.055
-        spacing = self.instruction_line_spacing
         lines = (text or "").split("\n")
-        n = len(lines)
-        total = line_h * spacing * (n - 1) if n > 1 else 0.0
-        start_y = center_y + total / 2.0
-        # Timing
+        center_y = self.instruction_center_y
+        line_h = self.instruction_line_height
+        spacing = self.instruction_line_spacing
         show_start = core.getTime()
         delay = self.instruction_button_delay
-
-        # Button setup (styled)
-        btn_w, btn_h = 0.52, 0.14
-        btn_pos = (0, -0.38)
+        btn_w = self.instruction_button_width
+        btn_h = self.instruction_button_height
+        btn_pos = (self.instruction_button_x, self.instruction_button_y)
+        label_h = self.instruction_button_label_height
+        line_w = self.instruction_button_line_width
         mouse = event.Mouse(win=self.win)
         clickable = False
 
         while True:
-            now = core.getTime()
-            elapsed = now - show_start
+            elapsed = core.getTime() - show_start
             if not clickable and elapsed >= delay:
                 clickable = True
-            # Draw multi-line instruction
-            for i, line in enumerate(lines):
-                y = start_y - i * (line_h * spacing)
-                visual.TextStim(self.win, text=line, pos=(0, y), height=line_h, color='white').draw()
-            # Button state colors
-            fill_col = (0.1, 0.1, 0.1)
-            outline_col = 'white'
+
+            # Draw instruction text
+            self.draw_multiline(lines, center_y=center_y, line_height=line_h, spacing=spacing)
+
+            # Determine button colors
             if clickable:
-                # Hover effect
-                hovered = False
-                # Approximate contains check by temporary rect
                 temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
-                if temp_rect.contains(mouse):
-                    hovered = True
-                if hovered:
-                    fill_col = (0, 0.6, 0)  # Brighter green on hover
-                    outline_col = 'yellow'
-                else:
-                    fill_col = (0, 0.4, 0)  # Green when enabled
-                    outline_col = (0, 0.8, 0)  # Green outline
+                hovered = temp_rect.contains(mouse)
+                fill_col = self.instruction_button_fill_hover if hovered else self.instruction_button_fill_enabled
+                outline_col = self.instruction_button_outline_hover if hovered else self.instruction_button_outline_enabled
             else:
-                outline_col = (0.5, 0.5, 0.5)
-                fill_col = (0.15, 0.15, 0.15)
-            btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos, lineColor=outline_col, fillColor=fill_col, lineWidth=4)
+                fill_col = self.instruction_button_fill_disabled
+                outline_col = self.instruction_button_outline_disabled
+
+            btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
+                                    lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
             remaining = int(max(0, delay - elapsed))
             label_text = button_text if clickable else f"{button_text} ({remaining}s)"
-            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=0.055, color='white')
+            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white')
             btn_rect.draw(); btn_label.draw()
             self.win.flip()
+
             if clickable and any(mouse.getPressed()) and btn_rect.contains(mouse):
                 while any(mouse.getPressed()):
                     core.wait(0.01)
@@ -718,17 +757,12 @@ class RavenTask:
                 json.dump(meta, mf, ensure_ascii=False, indent=2)
         except Exception:
             pass
-        # Display final completion message (two lines, 1.5x line spacing)
-        line1 = '作答完成！'
-        line2 = '感谢您的作答！'
-        spacing = 1.5
-        base_h = 0.065
-        total_h = base_h * spacing
-        y1 = 0.05 + total_h / 2.0
-        y2 = y1 - total_h
-        for _ in range(300):  # show a bit longer (~5s at 60Hz)
-            visual.TextStim(self.win, text=line1, pos=(0, y1), height=base_h, color='green', bold=True).draw()
-            visual.TextStim(self.win, text=line2, pos=(0, y2), height=base_h, color='white').draw()
+        # Display final completion message (two lines, 1.5x line spacing) via unified helper
+        lines = ['作答完成！', '感谢您的作答！']
+        colors = ['green', 'white']
+        for _ in range(300):  # ~5s
+            self.draw_multiline(lines, center_y=0.05, line_height=0.065, spacing=1.5,
+                                colors=colors, bold_idx={0})
             self.win.flip()
 
 
