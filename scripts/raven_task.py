@@ -57,9 +57,9 @@ def _get_output_dir() -> str:
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
 
 BASE_DIR = _get_base_dir()
-CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'items.json')
+SEQUENCE_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')  # experiment sequence
 DATA_DIR = _get_output_dir()
-LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
+LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')  # separate layout
 
 
 def _get_exe_override_path(rel_path: str) -> str | None:
@@ -227,19 +227,19 @@ def build_items_from_pattern(pattern: str, count: int, answers: list[int], start
 
 
 class RavenTask:
-    def __init__(self, win, config, participant_info=None):
+    def __init__(self, win, sequence, layout, participant_info=None):
         self.win = win
-        self.items = {
-            'practice': config['practice'],
-            'formal': config['formal']
+        self.sequence = {
+            'practice': sequence['practice'],
+            'formal': sequence['formal']
         }
-        self.practice = self.items['practice']
-        self.formal = self.items['formal']
+        self.practice = self.sequence['practice']
+        self.formal = self.sequence['formal']
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
         pid = str(self.participant_info.get('participant_id', '')).strip()
-        self.debug_mode = config.get('debug_mode', False) or (pid == '0')
+        self.debug_mode = sequence.get('debug_mode', False) or (pid == '0')
         # Deadlines are set right before each section starts (after showing instructions)
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
@@ -249,14 +249,13 @@ class RavenTask:
         self.practice_start_time = None
         self.formal_last_times = {}
         self.formal_start_time = None
-        layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
         # New rule: layout.json must define ALL required keys. No implicit defaults.
-        self.layout = dict(layout_cfg)
+        self.layout = dict(layout)
         if 'font_main' not in self.layout:
             raise RuntimeError("layout.json 缺少必要的 'font_main' 键。请在 configs/layout.json 中添加它。")
 
         try:
-            answers_file = config.get('answers_file')
+            answers_file = sequence.get('answers_file')
         except AttributeError:
             answers_file = None
         if answers_file:
@@ -1007,30 +1006,13 @@ def get_participant_info():
         gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
 
 
-def load_config_with_layout(config_path):
-    """从 items.json 读取主配置，并加载独立的 layout.json（外部优先，其次内置）。"""
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
-
-    # 加载布局（严格模式）
-    override_layout_path = _get_exe_override_path(os.path.join('configs', 'layout.json'))
-    for candidate in [override_layout_path, LAYOUT_CONFIG_PATH]:
-        if candidate and os.path.exists(candidate):
-            with open(candidate, 'r', encoding='utf-8') as lf:
-                layout = json.load(lf)
-            config['layout'] = layout
-            return config
-
-    raise RuntimeError(
-        "未找到布局配置文件 configs/layout.json。请在以下任一路径提供该文件：\n"
-        f"- 可执行文件同目录: {override_layout_path}\n"
-        f"- 内置/开发路径: {LAYOUT_CONFIG_PATH}"
-    )
+from config_loader import load_sequence, load_layout
 
 
 def main():
-    # 严格从 configs 读取布局
-    config = load_config_with_layout(CONFIG_PATH)
+    # 分离加载 sequence 与 layout
+    sequence = load_sequence(SEQUENCE_PATH)
+    layout = load_layout()
 
     # Retry loop for participant info
     while True:
@@ -1046,14 +1028,14 @@ def main():
         break
     # Determine debug flag before creating the window
     pid_str = str((info or {}).get('participant_id', '')).strip()
-    debug_active = bool(config.get('debug_mode', False) or (pid_str == '0'))
+    debug_active = bool(sequence.get('debug_mode', False) or (pid_str == '0'))
 
     # In non-debug mode run fullscreen; in debug mode use a window for convenience
     if debug_active:
         win = visual.Window(size=(1280, 800), color='black', units='norm')
     else:
         win = visual.Window(fullscr=True, color='black', units='norm')
-    task = RavenTask(win, config, participant_info=info)
+    task = RavenTask(win, sequence, layout, participant_info=info)
     try:
         task.run()
     finally:

@@ -111,7 +111,7 @@ python scripts/raven_task.py
 
 默认：练习 Set I 10 分钟上限，正式 Set II 40 分钟上限。正式阶段顶部展示题号导航，可回看和修改已答题目；最后一题作答后底部出现"提交答案"按钮（不自动提交），点击后保存结果文件到 `data/` 目录，如：`raven_results_20250101_101530.csv`。
 
-题目与资源通过 `configs/items.json` 配置。推荐使用“按模式自动生成”方式：
+题目与序列配置通过 `configs/sequence.json` 设置。推荐使用"按模式自动生成"方式：
 
 ```jsonc
 {
@@ -213,7 +213,7 @@ CSV 列：
 
 **启用方式（两种方法任选其一）：**
 
-1. **配置文件启用**：在 `configs/items.json` 中设置：
+1. **配置文件启用**：在 `configs/sequence.json` 中设置：
 
    ```json
    "debug_mode": true

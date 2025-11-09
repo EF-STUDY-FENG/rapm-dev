@@ -33,6 +33,7 @@ from raven_task import (
     file_exists_nonempty,
     load_answers,
 )
+from config_loader import load_sequence, load_layout
 
 
 def test_base_dir_exists():
@@ -78,16 +79,16 @@ def test_is_stimuli_dir_empty():
 def test_resolve_path_configs():
     """Test that config files can be resolved."""
     # Test resolving configs directory
-    items_config = resolve_path('configs/items.json')
+    sequence_config = resolve_path('configs/sequence.json')
     layout_config = resolve_path('configs/layout.json')
 
     # At least one should exist (in dev or bundled)
-    assert os.path.exists(items_config) or os.path.exists(layout_config), \
+    assert os.path.exists(sequence_config) or os.path.exists(layout_config), \
         "At least one config file should be resolvable"
 
     print(f"✓ Config path resolution works")
-    if os.path.exists(items_config):
-        print(f"  - items.json: {items_config}")
+    if os.path.exists(sequence_config):
+        print(f"  - sequence.json: {sequence_config}")
     if os.path.exists(layout_config):
         print(f"  - layout.json: {layout_config}")
 
@@ -142,28 +143,36 @@ def test_configs_are_valid_json():
     """Test that config files are valid JSON."""
     import json
 
-    items_config = resolve_path('configs/items.json')
+    sequence_config = resolve_path('configs/sequence.json')
     layout_config = resolve_path('configs/layout.json')
 
     configs_tested = 0
 
-    if os.path.exists(items_config):
-        with open(items_config, 'r', encoding='utf-8') as f:
+    if os.path.exists(sequence_config):
+        with open(sequence_config, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            assert isinstance(data, dict), "items.json should be a JSON object"
+            assert isinstance(data, dict), "sequence.json should be a JSON object"
             assert 'practice' in data or 'formal' in data, \
-                "items.json should have practice or formal section"
-        print(f"✓ items.json is valid JSON")
+                "sequence.json should have practice or formal section"
+        print(f"✓ sequence.json is valid JSON")
         configs_tested += 1
 
     if os.path.exists(layout_config):
         with open(layout_config, 'r', encoding='utf-8') as f:
             data = json.load(f)
             assert isinstance(data, dict), "layout.json should be a JSON object"
-        print(f"✓ layout.json is valid JSON")
+            assert 'font_main' in data, "layout.json should contain font_main key"
+        print(f"✓ layout.json is valid JSON & contains font_main")
         configs_tested += 1
 
     assert configs_tested > 0, "At least one config file should exist and be tested"
+def test_separate_config_loader():
+    """Test that sequence and layout can be loaded separately."""
+    sequence = load_sequence()
+    assert 'practice' in sequence and 'formal' in sequence, "sequence config must have practice/formal"
+    layout = load_layout()
+    assert 'font_main' in layout, "layout config must contain font_main"
+    print("✓ separate config loader works")
 
 
 def run_all_tests():
@@ -180,6 +189,7 @@ def run_all_tests():
         test_file_exists_nonempty,
         test_load_answers,
         test_configs_are_valid_json,
+        test_separate_config_loader,
     ]
 
     passed = 0
