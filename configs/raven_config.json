@@ -17,6 +17,7 @@
   "scale_option": 0.749,
     "nav_y": 0.90,
     "timer_y": 0.82,
-    "option_grid_center_y": -0.425
+    "option_grid_center_y": -0.425,
+    "option_img_fill": 0.95
   }
 }

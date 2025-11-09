@@ -150,6 +150,8 @@ class RavenTask:
         self.option_rect_h_base = float(layout_cfg.get('option_rect_h', 0.35))
         self.option_img_max_w_base = float(layout_cfg.get('option_img_w', 0.36))
         self.option_img_max_h_base = float(layout_cfg.get('option_img_h', 0.28))
+        # Option image fill ratio inside rect (0-1). Higher -> fills more, keep some border visible.
+        self.option_img_fill = float(layout_cfg.get('option_img_fill', 0.92))
         self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
         self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
         self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
@@ -243,9 +245,10 @@ class RavenTask:
                 rect.lineWidth = 2
             if idx < len(option_paths) and file_exists_nonempty(option_paths[idx]):
                 try:
-                    # Limit image to 85% of rect to reveal border clearly
-                    max_w = rect.width * 0.85
-                    max_h = rect.height * 0.85
+                    # Fill image up to configured ratio of rect size, preserving aspect ratio
+                    ratio = max(0.5, min(self.option_img_fill, 0.98))
+                    max_w = rect.width * ratio
+                    max_h = rect.height * ratio
                     disp_w, disp_h = fitted_size_keep_aspect(option_paths[idx], max_w, max_h)
                     img = visual.ImageStim(self.win, image=resolve_path(option_paths[idx]), pos=rect.pos, size=(disp_w, disp_h))
                     img.draw()
