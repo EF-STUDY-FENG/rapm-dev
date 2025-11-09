@@ -44,6 +44,13 @@ class RavenTask:
         self.nav_offset = 0
         self.max_visible_nav = 12
 
+    def run(self):
+        """Main entry point: run practice then formal test"""
+        self.run_practice()
+        self.in_practice = False
+        self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
+        self.run_formal()
+
     # ---------- Generic drawing helpers ----------
     def draw_timer(self, deadline):
         remaining = max(0, int(deadline - core.getTime()))
