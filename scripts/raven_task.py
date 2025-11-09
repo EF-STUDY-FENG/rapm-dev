@@ -113,7 +113,6 @@ class RavenTask:
         for item in items:
             answered = False
             while not answered and core.getTime() < self.practice_deadline:
-                self.win.flip()  # clear
                 self.draw_timer(self.practice_deadline)
                 self.draw_question(item['id'], item.get('question_image'))
                 rects = self.create_option_rects()
@@ -198,7 +197,6 @@ class RavenTask:
             return
         while core.getTime() < self.formal_deadline:
             item = items[self.current_formal_index]
-            self.win.flip()
             # Top navigation bar
             nav_items, left_arrow, right_arrow = self.build_top_navigation()
             for _, rect, label in nav_items:
