@@ -147,6 +147,20 @@ class RavenTask:
         self.scale_option = float(layout_cfg.get('scale_option', 0.749))      # options +5% from previous 0.713
         self.nav_y = float(layout_cfg.get('nav_y', 0.90))
         self.timer_y = float(layout_cfg.get('timer_y', 0.82))
+        # Unified header (timer + progress) vertical position and font size
+        self.header_y = float(layout_cfg.get('header_y', self.timer_y))
+        self.header_font_size = float(layout_cfg.get('header_font_size', 0.04))
+        # Progress indicator placement controls
+        # Default: align to the right at the same height as the timer (under the nav bar)
+        self.progress_below_nav_dy = float(layout_cfg.get('progress_below_nav_dy', 0.07))  # kept for compatibility
+        self.progress_y = float(layout_cfg.get('progress_y', 0.74))  # legacy
+        self.progress_x = float(layout_cfg.get('progress_x', 0.92))
+        self.progress_font_size = float(layout_cfg.get('progress_font_size', 0.04))
+        # Navigation arrow placement (used to align progress to right arrow)
+        self.nav_arrow_x_right = float(layout_cfg.get('nav_arrow_x_right', 0.98))
+        self.nav_arrow_x_left = float(layout_cfg.get('nav_arrow_x_left', -0.98))
+        self.nav_arrow_w = float(layout_cfg.get('nav_arrow_w', 0.09))
+        self.progress_right_margin = float(layout_cfg.get('progress_right_margin', 0.01))
         self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
         self.option_cols = int(layout_cfg.get('option_cols', 4))
         self.option_rows = int(layout_cfg.get('option_rows', 2))
@@ -245,8 +259,47 @@ class RavenTask:
         # Change color to red if threshold is set and remaining time is low
         color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
 
-        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color=color)
+        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.header_y), height=self.header_font_size, color=color)
         timerStim.draw()
+
+    def draw_progress(self, answered_count: int, total_count: int):
+        """Draw answered/total progress indicator.
+
+        - Green when all answered, white otherwise.
+        - Placed near the top using self.progress_y.
+        """
+        answered_count = max(0, min(answered_count, total_count))
+        txt = f"已答 {answered_count} / 总数 {total_count}"
+        color = 'green' if total_count > 0 and answered_count >= total_count else 'white'
+        # Place at right side on the same height as the timer (i.e., under nav), right-aligned
+        y = self.header_y
+        # Align progress left edge to the left edge of the right arrow box (with a small margin)
+        right_edge_x = self.nav_arrow_x_right - (self.nav_arrow_w / 2.0)
+        x = right_edge_x - self.progress_right_margin
+        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.header_font_size, color=color)
+        try:
+            progStim.anchorHoriz = 'right'
+        except Exception:
+            pass
+        progStim.draw()
+
+    def draw_header(self, deadline, show_threshold, red_threshold, answered_count, total_count,
+                    show_timer=True, show_progress=True):
+        """Draw the top header info (timer + progress) sharing the same vertical position.
+
+        Args:
+            deadline: absolute time for countdown
+            show_threshold: timer visibility threshold (None to always show)
+            red_threshold: timer red color threshold
+            answered_count: number of answered items
+            total_count: total number of items
+            show_timer: whether to draw the timer
+            show_progress: whether to draw the progress
+        """
+        if show_timer and deadline is not None:
+            self.draw_timer(deadline, show_threshold=show_threshold, red_threshold=red_threshold)
+        if show_progress and total_count is not None:
+            self.draw_progress(answered_count, total_count)
 
     def show_instruction(self, text: str, button_text: str = "继续"):
         """Display centered multi-line instruction with a styled button.
@@ -399,8 +452,16 @@ class RavenTask:
                 rect.draw(); label.draw()
             if l_rect: l_rect.draw(); l_txt.draw()
             if r_rect: r_rect.draw(); r_txt.draw()
-            # timer (always show in practice)
-            self.draw_timer(self.practice_deadline, show_threshold=None, red_threshold=300 if not self.debug_mode else 10)
+            # unified header (timer + progress)
+            self.draw_header(
+                deadline=self.practice_deadline,
+                show_threshold=None,
+                red_threshold=300 if not self.debug_mode else 10,
+                answered_count=len(self.practice_answers),
+                total_count=n_items,
+                show_timer=True,
+                show_progress=True,
+            )
             # question + options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
@@ -437,64 +498,6 @@ class RavenTask:
                 break
         # practice complete
 
-    # ---------- Formal flow with TOP navigation ----------
-    def build_top_navigation(self):
-        items = self.formal['items']
-        n = len(items)
-        stims = []  # list of tuples (global_index, rect, label)
-        # Determine visible window
-        start = self.nav_offset
-        end = min(n, start + self.max_visible_nav)
-        visible = list(range(start, end))
-        count = len(visible)
-        if count == 0:
-            return stims, None, None
-        # Evenly space within [-0.9, 0.9] at nav_y
-        x_left, x_right = -0.9, 0.9
-        span = x_right - x_left
-        if count == 1:
-            xs = [0.0]
-        else:
-            xs = [x_left + i * span / (count - 1) for i in range(count)]
-        for i, gi in enumerate(visible):
-            item = items[gi]
-            answered = item['id'] in self.formal_answers
-            rect = visual.Rect(self.win, width=0.11, height=0.07, pos=(xs[i], self.nav_y),
-                               lineColor='yellow' if gi == self.current_formal_index else 'white',
-                               fillColor=(0, 0.4, 0) if answered else None)
-            label = visual.TextStim(self.win, text=item['id'], pos=(xs[i], self.nav_y), height=0.035,
-                                    color='black' if answered else 'white')
-            stims.append((gi, rect, label))
-        left_arrow = right_arrow = None
-        if self.nav_offset > 0:
-            left_arrow = visual.TextStim(self.win, text='⟵', pos=(-0.98, self.nav_y), height=0.06, color='white')
-        if end < n:
-            right_arrow = visual.TextStim(self.win, text='⟶', pos=(0.98, self.nav_y), height=0.06, color='white')
-        return stims, left_arrow, right_arrow
-
-    def handle_top_navigation_click(self, nav_items, left_arrow, right_arrow):
-        mouse = event.Mouse(win=self.win)
-        if any(mouse.getPressed()):
-            # Arrows
-            if left_arrow and left_arrow.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                self.nav_offset = max(0, self.nav_offset - self.max_visible_nav)
-                return 'page'
-            if right_arrow and right_arrow.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                self.nav_offset = min(max(0, len(self.formal['items']) - self.max_visible_nav), self.nav_offset + self.max_visible_nav)
-                return 'page'
-            # Items
-            for gi, rect, label in nav_items:
-                if rect.contains(mouse) or label.contains(mouse):
-                    while any(mouse.getPressed()):
-                        core.wait(0.01)
-                    self.current_formal_index = gi
-                    return 'jump'
-        return None
-
     # ---------- Navigation Helpers (new) ----------
     def _center_offset(self, index: int, total: int) -> int:
         if total <= self.max_visible_nav:
@@ -517,7 +520,9 @@ class RavenTask:
         if not visible:
             return stims, None, None, None, None
         count = len(visible)
-        x_left, x_right = -0.9, 0.9
+        # Reserve horizontal space between left/right arrows according to configured positions/width
+        x_left = self.nav_arrow_x_left + self.nav_arrow_w
+        x_right = self.nav_arrow_x_right - self.nav_arrow_w
         span = x_right - x_left
         xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [0.0]
         for i, gi in enumerate(visible):
@@ -531,13 +536,13 @@ class RavenTask:
             stims.append((gi, rect, label))
         left_rect = left_txt = right_rect = right_txt = None
         if start > 0:
-            left_rect = visual.Rect(self.win, width=0.09, height=0.07, pos=(-0.98, self.nav_y),
+            left_rect = visual.Rect(self.win, width=self.nav_arrow_w, height=0.07, pos=(self.nav_arrow_x_left, self.nav_y),
                                     lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
-            left_txt = visual.TextStim(self.win, text='◄', pos=(-0.98, self.nav_y), height=0.05, bold=True)
+            left_txt = visual.TextStim(self.win, text='◄', pos=(self.nav_arrow_x_left, self.nav_y), height=0.05, bold=True)
         if end < n:
-            right_rect = visual.Rect(self.win, width=0.09, height=0.07, pos=(0.98, self.nav_y),
+            right_rect = visual.Rect(self.win, width=self.nav_arrow_w, height=0.07, pos=(self.nav_arrow_x_right, self.nav_y),
                                      lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
-            right_txt = visual.TextStim(self.win, text='►', pos=(0.98, self.nav_y), height=0.05, bold=True)
+            right_txt = visual.TextStim(self.win, text='►', pos=(self.nav_arrow_x_right, self.nav_y), height=0.05, bold=True)
         return stims, left_rect, left_txt, right_rect, right_txt
 
     def _handle_navigation_click(self, nav_items, left_rect, right_rect, section: str):
@@ -585,10 +590,15 @@ class RavenTask:
             if l_rect: l_rect.draw(); l_txt.draw()
             if r_rect: r_rect.draw(); r_txt.draw()
             # timer conditional display
+            # unified header (timer + progress)
             if self.debug_mode:
-                self.draw_timer(self.formal_deadline, show_threshold=20, red_threshold=10)
+                self.draw_header(self.formal_deadline, show_threshold=20, red_threshold=10,
+                                 answered_count=len(self.formal_answers), total_count=n_items,
+                                 show_timer=True, show_progress=True)
             else:
-                self.draw_timer(self.formal_deadline, show_threshold=600, red_threshold=300)
+                self.draw_header(self.formal_deadline, show_threshold=600, red_threshold=300,
+                                 answered_count=len(self.formal_answers), total_count=n_items,
+                                 show_timer=True, show_progress=True)
             # question & options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()

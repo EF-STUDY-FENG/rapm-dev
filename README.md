@@ -121,12 +121,32 @@ CSV 列：
   "scale_question": 1.2,      // 题干区域整体缩放
   "scale_option": 0.9,        // 选项区域缩放（<1 缩小）
   "nav_y": 0.90,              // 顶部导航条的 y 位置
-  "timer_y": 0.82,            // 计时器 y 位置
+  "timer_y": 0.82,            // 计时器 y 位置（与 header_y 统一建议）
+  "header_y": 0.82,           // 头部信息统一高度（倒计时与进度共用）
+  "header_font_size": 0.04,   // 头部信息字号（倒计时与进度共用）
   "option_grid_center_y": -0.425 // 选项网格中心 y
 }
 ```
 
 其它可选键：`option_dx`, `option_dy`, `question_box_w`, `question_box_h` 等，用于进一步控制布局与缩放。
+
+#### 顶部导航与进度对齐（高级）
+
+为确保“进度”与右侧翻页箭头精确对齐，同时让题号在两箭头之间等间距排布，提供以下参数：
+
+```jsonc
+"layout": {
+  // 箭头矩形位置与宽度（中心坐标与宽度，单位为 norm）
+  "nav_arrow_x_right": 0.98,
+  "nav_arrow_x_left": -0.98,
+  "nav_arrow_w": 0.09,
+
+  // 进度文本与右箭头矩形左边缘的间距
+  "progress_right_margin": 0.01
+}
+```
+
+进度文本将以 `header_y` 为纵坐标、在右侧显示，并与右箭头矩形左边缘保持 `progress_right_margin` 的水平距离；文本尝试右对齐（若 PsychoPy 版本不支持则忽略）。
 
 **自动布局建议**：程序启动时会自动检测屏幕分辨率（通过 PsychoPy 或 tkinter），并根据以下规则生成建议参数：
 
