@@ -70,11 +70,67 @@ def file_exists_nonempty(path: str) -> bool:
         return False
 
 
+def _is_stimuli_dir_empty(dirpath: str) -> bool:
+    """Check if stimuli directory is empty or contains only .gitignore."""
+    try:
+        if not os.path.isdir(dirpath):
+            return True
+        entries = os.listdir(dirpath)
+        # Empty or only .gitignore means we should look elsewhere
+        return len(entries) == 0 or (len(entries) == 1 and entries[0] == '.gitignore')
+    except Exception:
+        return True
+
+
 def resolve_path(p: str) -> str:
-    """Resolve a possibly relative path to project root."""
+    """Resolve a possibly relative path with intelligent stimuli fallback.
+
+    Priority:
+    1. If absolute path exists, use it
+    2. Try BASE_DIR / path (bundled resources or dev mode)
+       - For stimuli paths: check if directory is empty/only has .gitignore
+       - If empty, fallback to exe directory (for frozen builds)
+    3. Try executable directory / path (fallback for empty bundled stimuli)
+
+    This allows GitHub Actions to build with empty stimuli/ that users populate later.
+    """
     if os.path.isabs(p):
-        return p
-    return os.path.join(BASE_DIR, p)
+        if os.path.exists(p):
+            return p
+
+    # Try bundled/dev resource path first
+    candidate = os.path.join(BASE_DIR, p)
+
+    # Special handling for stimuli directory in frozen builds
+    if getattr(sys, 'frozen', False) and p.startswith('stimuli'):
+        # Check if bundled stimuli is empty
+        stimuli_base = os.path.join(BASE_DIR, 'stimuli')
+        if _is_stimuli_dir_empty(stimuli_base):
+            # Bundled stimuli is empty, try exe directory
+            try:
+                exe_dir = os.path.dirname(sys.executable)
+                fallback = os.path.join(exe_dir, p)
+                if os.path.exists(fallback):
+                    return fallback
+            except Exception:
+                pass
+
+    # For non-stimuli paths or non-frozen, use normal candidate
+    if os.path.exists(candidate):
+        return candidate
+
+    # Last resort fallback to exe directory (for any missing files in frozen mode)
+    try:
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            fallback = os.path.join(exe_dir, p)
+            if os.path.exists(fallback):
+                return fallback
+    except Exception:
+        pass
+
+    # Return first candidate even if not exists (for error messages)
+    return candidate
 
 
 def load_answers(answer_file: str) -> list[int]:
