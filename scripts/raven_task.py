@@ -129,7 +129,8 @@ class RavenTask:
         self.current_formal_index = 0
         self.in_practice = True
         self.start_time = core.getTime()
-        self.practice_deadline = self.start_time + self.practice['time_limit_minutes'] * 60
+        # Deadlines are set right before each section starts (after showing instructions)
+        self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
         self.submit_visible = False
         # top navigation pagination offset (for many items)
@@ -178,8 +179,29 @@ class RavenTask:
 
     def run(self):
         """Main entry point: run practice then formal test"""
+        # Show practice instructions
+        self.show_instruction(
+            "下面将进行的是瑞文高级推理测验\n"
+            "每道题目的上方是一张大图，大图的图案缺了一部分\n"
+            "请你从下面8个备选图形中找出大图的缺失部分，并选中它\n"
+            "在正式测试之前，有12道练习题目\n"
+            "限时10分钟",
+            button_text="开始练习"
+        )
+        # Set practice deadline now
+        self.practice_deadline = core.getTime() + self.practice['time_limit_minutes'] * 60
         self.run_practice()
+        # Practice finished
         self.in_practice = False
+        # Show formal instructions
+        self.show_instruction(
+            "练习结束，下面将开始正式测试\n"
+            "正式测试一共有36道题目\n"
+            "题目按从易到难的顺序编排\n"
+            "限时40分钟\n"
+            "只剩最后10分钟时将倒计时提醒您",
+            button_text="开始测试"
+        )
         self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
         self.run_formal()
 
@@ -191,6 +213,27 @@ class RavenTask:
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
         timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color='white')
         timerStim.draw()
+
+    def show_instruction(self, text: str, button_text: str = "继续"):
+        """Display centered multi-line instruction with a clickable button below."""
+        # Text in center
+        instr = visual.TextStim(self.win, text=text, pos=(0, 0.15), height=0.055, color='white', alignText='center')
+        # Button setup
+        btn_w, btn_h = 0.48, 0.12
+        btn_pos = (0, -0.35)
+        btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos, lineColor='white', fillColor=None)
+        btn_label = visual.TextStim(self.win, text=button_text, pos=btn_pos, height=0.05, color='white')
+        mouse = event.Mouse(win=self.win)
+        while True:
+            # Clear-ish background by drawing nothing else, just the elements
+            instr.draw()
+            btn_rect.draw()
+            btn_label.draw()
+            self.win.flip()
+            if any(mouse.getPressed()) and btn_rect.contains(mouse):
+                while any(mouse.getPressed()):
+                    core.wait(0.01)
+                break
 
     def draw_question(self, item_id: str, image_path: str | None):
         # Question area at top center (no border frame)
@@ -276,8 +319,6 @@ class RavenTask:
                 self.draw_question(item['id'], item.get('question_image'))
                 rects = self.create_option_rects()
                 self.draw_options(item.get('options', []), rects)
-                instruction = visual.TextStim(self.win, text='练习：请点击一个选项 (自动进入下一题)', pos=(0, -0.85), height=0.04)
-                instruction.draw()
                 self.win.flip()
                 choice = self.detect_click_on_rects(rects)
                 if choice is not None:
@@ -286,10 +327,7 @@ class RavenTask:
             if core.getTime() >= self.practice_deadline:
                 break
         # brief transition
-        trans = visual.TextStim(self.win, text='练习结束，进入正式测试...', height=0.05)
-        for _ in range(60):
-            self.draw_timer(core.getTime()+5)  # dummy visual
-            trans.draw(); self.win.flip()
+        # Removed transitional text; formal instructions appear separately
 
     # ---------- Formal flow with TOP navigation ----------
     def build_top_navigation(self):
