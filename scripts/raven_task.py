@@ -130,9 +130,13 @@ class RavenTask:
         self.practice = self.items['practice']
         self.formal = self.items['formal']
         self.participant_info = participant_info or {}
-        self.practice_answers = {}
-        self.formal_answers = {}
-        # Enable debug mode if configured OR if participant_id is "0"
+        self.practice_answers = {}  # type: dict
+        self.formal_answers = {}    # type: dict
+        # Per-item last answer time (seconds, float from core.getTime())
+        self.practice_last_times = {}  # type: dict
+        self.formal_last_times = {}    # type: dict
+        self.practice_start_time = None  # type: float
+        self.formal_start_time = None   # type: float
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = config.get('debug_mode', False) or (pid == '0')
         # Deadlines are set right before each section starts (after showing instructions)
@@ -183,9 +187,11 @@ class RavenTask:
         # Set practice deadline now
         if self.debug_mode:
             # Debug: 10 seconds for practice
-            self.practice_deadline = core.getTime() + 10
+            self.practice_start_time = core.getTime()
+            self.practice_deadline = self.practice_start_time + 10
         else:
-            self.practice_deadline = core.getTime() + self.practice['time_limit_minutes'] * 60
+            self.practice_start_time = core.getTime()
+            self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
         # Run practice section
         self.run_section('practice')
         # Practice finished
@@ -201,9 +207,11 @@ class RavenTask:
         # Set formal deadline (use debug time if in debug mode)
         if self.debug_mode:
             # Debug: 25 seconds (show timer at 20s, red at 10s)
-            self.formal_deadline = core.getTime() + 25
+            self.formal_start_time = core.getTime()
+            self.formal_deadline = self.formal_start_time + 25
         else:
-            self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
+            self.formal_start_time = core.getTime()
+            self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
         # Run formal section
         self.run_section('formal')
 
@@ -595,6 +603,12 @@ class RavenTask:
             choice = self.detect_click_on_rects(rects)
             if choice is not None:
                 answers[item['id']] = choice + 1
+                # 记录该题最后作答时间
+                now_sec = core.getTime()
+                if section == 'practice':
+                    self.practice_last_times[item['id']] = now_sec
+                else:
+                    self.formal_last_times[item['id']] = now_sec
                 # Check if all answered
                 if len(answers) == n_items:
                     if section == 'practice':
@@ -794,28 +808,31 @@ class RavenTask:
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
         pid = self.participant_info.get('participant_id', '')
-        tnow = datetime.now().isoformat(timespec='seconds')
         practice_correct = 0
         formal_correct = 0
         with open(out_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'correct', 'is_correct', 'timestamp'])
-            for item in self.practice.get('items', []):
-                iid = item.get('id')
-                ans = self.practice_answers.get(iid)
-                correct = item.get('correct')
-                is_correct = (ans == correct) if (ans is not None and correct is not None) else None
-                if is_correct:
-                    practice_correct += 1
-                writer.writerow([pid, 'practice', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
-            for item in self.formal.get('items', []):
-                iid = item.get('id')
-                ans = self.formal_answers.get(iid)
-                correct = item.get('correct')
-                is_correct = (ans == correct) if (ans is not None and correct is not None) else None
-                if is_correct:
-                    formal_correct += 1
-                writer.writerow([pid, 'formal', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
+            writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'correct', 'is_correct', 'time'])
+            def write_section(section, items, answers, last_times, start_time):
+                nonlocal practice_correct, formal_correct
+                for item in items:
+                    iid = item.get('id')
+                    ans = answers.get(iid)
+                    correct = item.get('correct')
+                    is_correct = (ans == correct) if (ans is not None and correct is not None) else None
+                    if is_correct:
+                        if section == 'practice':
+                            practice_correct += 1
+                        else:
+                            formal_correct += 1
+                    t2 = last_times.get(iid, None)
+                    t0 = start_time
+                    time_used = ''
+                    if t0 is not None and t2 is not None:
+                        time_used = f"{t2-t0:.3f}"
+                    writer.writerow([pid, section, iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), time_used])
+            write_section('practice', self.practice.get('items', []), self.practice_answers, self.practice_last_times, self.practice_start_time)
+            write_section('formal', self.formal.get('items', []), self.formal_answers, self.formal_last_times, self.formal_start_time)
         meta = {
             'participant': self.participant_info,
             'time_created': datetime.now().isoformat(timespec='seconds'),
