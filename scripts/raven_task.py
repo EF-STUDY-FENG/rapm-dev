@@ -86,9 +86,16 @@ class RavenTask:
             rects.append((rect, label))
         return rects
 
-    def draw_options(self, option_paths, rects):
-        # Draw images if available; otherwise leave as outlined rects with labels
+    def draw_options(self, option_paths, rects, selected_index=None):
+        """Draw option rectangles; highlight selected with thicker yellow border."""
         for idx, (rect, label) in enumerate(rects):
+            # highlight previously selected
+            if selected_index is not None and idx == selected_index:
+                rect.lineColor = 'yellow'
+                rect.lineWidth = 6
+            else:
+                rect.lineColor = 'white'
+                rect.lineWidth = 2
             if idx < len(option_paths) and file_exists_nonempty(option_paths[idx]):
                 try:
                     img = visual.ImageStim(self.win, image=option_paths[idx], pos=rect.pos, size=(0.36, 0.28))
@@ -211,7 +218,11 @@ class RavenTask:
             # Question + options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
-            self.draw_options(item.get('options', []), rects)
+            prev_choice = None
+            if item['id'] in self.formal_answers:
+                # stored answers are 1-based
+                prev_choice = self.formal_answers[item['id']] - 1
+            self.draw_options(item.get('options', []), rects, selected_index=prev_choice)
             # Bottom instructions and submit
             bottom_text = '正式测试：请选择一个选项。可点击上方题号回看/修改。'
             if self.current_formal_index == n_items - 1:
