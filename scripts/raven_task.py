@@ -22,11 +22,11 @@ import sys
 from datetime import datetime
 
 def _get_base_dir() -> str:
-    """Return base directory for resources, compatible with PyInstaller.
+    """Return base directory for read-only resources (configs/stimuli).
 
-    When frozen with PyInstaller (onefile/onedir), data files are unpacked to
-    sys._MEIPASS (onefile) or placed next to the executable (onedir). We prefer
-    sys._MEIPASS when present; otherwise fall back to project root (../ from this file).
+    Note: In PyInstaller onefile, resources are unpacked to a temporary
+    extraction directory (sys._MEIPASS). That location is read-only and may be
+    deleted after exit, so DO NOT write output files there.
     """
     try:
         # PyInstaller onefile provides a temporary extraction dir
@@ -41,9 +41,23 @@ def _get_base_dir() -> str:
     # Normal dev mode: project root (scripts/..)
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+def _get_output_dir() -> str:
+    """Return a persistent, user-writable directory for saving results.
+
+    - For frozen apps (onefile/onedir), use the directory next to the executable.
+    - For dev, use the project-level 'data' directory.
+    """
+    try:
+        if getattr(sys, 'frozen', False):
+            return os.path.join(os.path.dirname(sys.executable), 'data')
+    except Exception:
+        pass
+    # Dev mode: project root /data
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+
 BASE_DIR = _get_base_dir()
 CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'items.json')
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+DATA_DIR = _get_output_dir()
 LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
 
 
@@ -164,7 +178,7 @@ class RavenTask:
         self.formal_last_times = {}
         self.formal_start_time = None
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
-        self.layout = dict(layout_cfg)  # 单独 layout
+        self.layout = dict(layout_cfg)  # layout overrides
 
         try:
             answers_file = config.get('answers_file')
@@ -405,10 +419,10 @@ class RavenTask:
             txt.draw()
 
     def create_option_rects(self):
-        """生成当前题目选项的矩形区域列表。
+        """Build option rectangles for the current item.
 
         Returns:
-            list[visual.Rect]: 与选项 index 对应的矩形列表（按顺序）。
+            list[visual.Rect]: Rectangles mapped to option indices in order.
         """
         cols = int(self.L('option_cols', 4))
         rows = int(self.L('option_rows', 2))
@@ -423,7 +437,7 @@ class RavenTask:
         for r in range(rows):
             for c in range(cols):
                 idx = r * cols + c
-                # 统一坐标：列 0 在左，行 0 在上
+                # Coordinate system: col 0 left, row 0 top
                 x = (c - (cols - 1) / 2) * dx
                 y = center_y - (r - (rows - 1) / 2) * dy
                 rect = visual.Rect(
@@ -476,26 +490,26 @@ class RavenTask:
                     placeholder.draw()
 
     def detect_click_on_rects(self, rects):
-        """检测是否点击到某个选项矩形。
+        """Detect click on any option rectangle.
 
         Returns:
-            int | None: 点击的索引（0 基），无点击返回 None。
+            int | None: Zero-based index if clicked, else None.
         """
         mouse = event.Mouse(win=self.win)
         if not any(mouse.getPressed()):
             return None
         for i, rect in enumerate(rects):
             if rect.contains(mouse):
-                # 等待释放，避免长按重复
+                # Wait for release to avoid repeat from hold
                 while any(mouse.getPressed()):
                     core.wait(0.01)
                 return i
         return None
 
     def _get_section_config(self, section: str):
-        """统一生成某测试阶段的运行参数集。"""
+        """Assemble runtime parameters for a test section."""
         if section == 'practice':
-            # 练习：计时器始终显示(目前逻辑: 显示，无红色提示) -> show_threshold=None, red_threshold=None
+            # Practice: timer always visible, no red warning
             return {
                 'config': self.practice,
                 'answers': self.practice_answers,
@@ -1127,11 +1141,8 @@ def main():
     try:
         task.run()
     finally:
-        # Clean up window
-        try:
-            win.close()
-        except Exception:
-            pass
+        # Clean up window（不再用 try 包裹，之前的退出错误已修复）
+        win.close()
         # In frozen/packaged apps, core.quit() can cause logging errors
         # Just let the program exit normally instead
 
