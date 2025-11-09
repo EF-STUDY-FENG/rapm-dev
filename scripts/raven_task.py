@@ -155,6 +155,8 @@ class RavenTask:
         self.option_img_fill = float(layout_cfg.get('option_img_fill', 0.92))
         # Instruction line spacing multiplier
         self.instruction_line_spacing = float(layout_cfg.get('instruction_line_spacing', 1.5))
+        # Instruction button delay (seconds) before enabling click
+        self.instruction_button_delay = float(layout_cfg.get('instruction_button_delay', 5.0))
         self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
         self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
         self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
@@ -217,8 +219,8 @@ class RavenTask:
         timerStim.draw()
 
     def show_instruction(self, text: str, button_text: str = "继续"):
-        """Display centered multi-line instruction with a clickable button below.
-        PsychoPy TextStim lacks a lineSpacing kwarg in some versions; we render lines manually.
+        """Display centered multi-line instruction with a styled button.
+        Button becomes clickable only after self.instruction_button_delay seconds.
         """
         # Precompute lines layout
         center_y = 0.15
@@ -228,22 +230,48 @@ class RavenTask:
         n = len(lines)
         total = line_h * spacing * (n - 1) if n > 1 else 0.0
         start_y = center_y + total / 2.0
+        # Timing
+        show_start = core.getTime()
+        delay = self.instruction_button_delay
 
-        # Button setup
-        btn_w, btn_h = 0.48, 0.12
-        btn_pos = (0, -0.35)
-        btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos, lineColor='white', fillColor=None)
-        btn_label = visual.TextStim(self.win, text=button_text, pos=btn_pos, height=0.05, color='white')
+        # Button setup (styled)
+        btn_w, btn_h = 0.52, 0.14
+        btn_pos = (0, -0.38)
         mouse = event.Mouse(win=self.win)
+        clickable = False
+
         while True:
-            # Draw multi-line instruction centered
+            now = core.getTime()
+            elapsed = now - show_start
+            if not clickable and elapsed >= delay:
+                clickable = True
+            # Draw multi-line instruction
             for i, line in enumerate(lines):
                 y = start_y - i * (line_h * spacing)
                 visual.TextStim(self.win, text=line, pos=(0, y), height=line_h, color='white').draw()
-            btn_rect.draw()
-            btn_label.draw()
+            # Button state colors
+            fill_col = (0.1, 0.1, 0.1)
+            outline_col = 'white'
+            if clickable:
+                # Hover effect
+                hovered = False
+                # Approximate contains check by temporary rect
+                temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
+                if temp_rect.contains(mouse):
+                    hovered = True
+                if hovered:
+                    fill_col = (0.2, 0.2, 0.2)
+                    outline_col = 'yellow'
+            else:
+                outline_col = (0.5, 0.5, 0.5)
+                fill_col = (0.15, 0.15, 0.15)
+            btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos, lineColor=outline_col, fillColor=fill_col, lineWidth=4)
+            remaining = int(max(0, delay - elapsed))
+            label_text = button_text if clickable else f"{button_text} ({remaining}s)"
+            btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=0.055, color='white')
+            btn_rect.draw(); btn_label.draw()
             self.win.flip()
-            if any(mouse.getPressed()) and btn_rect.contains(mouse):
+            if clickable and any(mouse.getPressed()) and btn_rect.contains(mouse):
                 while any(mouse.getPressed()):
                     core.wait(0.01)
                 break
