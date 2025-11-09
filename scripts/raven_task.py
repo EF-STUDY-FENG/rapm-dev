@@ -137,8 +137,8 @@ class RavenTask:
         self.max_visible_nav = 12
         # Layout tuning (can be overridden in config.layout)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
-        self.scale_question = float(layout_cfg.get('scale_question', 1.2))  # enlarge question area
-        self.scale_option = float(layout_cfg.get('scale_option', 0.9))      # slightly smaller options
+        self.scale_question = float(layout_cfg.get('scale_question', 1.44))  # enlarge question area (+20%)
+        self.scale_option = float(layout_cfg.get('scale_option', 0.72))      # smaller options (-20%)
         self.nav_y = float(layout_cfg.get('nav_y', 0.90))
         self.timer_y = float(layout_cfg.get('timer_y', 0.82))
         self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
@@ -191,11 +191,10 @@ class RavenTask:
         timerStim.draw()
 
     def draw_question(self, item_id: str, image_path: str | None):
-        # Question area at top center
+        # Question area at top center (no border frame)
         q_w = self.question_box_w_base * self.scale_question
         q_h = self.question_box_h_base * self.scale_question
-        rect = visual.Rect(self.win, width=q_w, height=q_h, pos=(0, self.question_box_y), lineColor='white', fillColor=None)
-        rect.draw()
+        # Remove the white border box - only draw the image
         if image_path and file_exists_nonempty(image_path):
             try:
                 max_w = q_w - self.question_img_margin_w
@@ -547,10 +546,10 @@ def suggest_layout_for_resolution(width, height):
     """
     aspect_ratio = width / height if height > 0 else 1.0
 
-    # Base suggestions
+    # Base suggestions (updated: question +20%, options -20% from original baseline)
     layout = {
-        "scale_question": 1.2,
-        "scale_option": 0.9,
+        "scale_question": 1.44,
+        "scale_option": 0.72,
         "nav_y": 0.90,
         "timer_y": 0.82,
         "option_grid_center_y": -0.425
@@ -559,15 +558,15 @@ def suggest_layout_for_resolution(width, height):
     # Adjust for different screen sizes
     # High resolution (>1920px width): can use larger elements
     if width >= 2560:
-        layout["scale_question"] = 1.4
-        layout["scale_option"] = 1.0
+        layout["scale_question"] = 1.68  # 1.4 * 1.2
+        layout["scale_option"] = 0.80    # 1.0 * 0.8
     elif width >= 1920:
-        layout["scale_question"] = 1.3
-        layout["scale_option"] = 0.95
+        layout["scale_question"] = 1.56  # 1.3 * 1.2
+        layout["scale_option"] = 0.76    # 0.95 * 0.8
     elif width < 1280:
         # Small screen: reduce sizes
-        layout["scale_question"] = 1.0
-        layout["scale_option"] = 0.8
+        layout["scale_question"] = 1.20  # 1.0 * 1.2
+        layout["scale_option"] = 0.64    # 0.8 * 0.8
         layout["option_grid_center_y"] = -0.35
 
     # Adjust for ultra-wide screens (aspect ratio > 2.0)
