@@ -136,8 +136,10 @@ class RavenTask:
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
         self.submit_visible = False
-        # top navigation pagination offset (for many items)
-        self.nav_offset = 0
+        # navigation state
+        self.current_practice_index = 0
+        self.practice_nav_offset = 0
+        self.formal_nav_offset = 0
         self.max_visible_nav = 12
         # Layout tuning (can be overridden in config.layout)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
@@ -381,25 +383,57 @@ class RavenTask:
                     return idx
         return None
 
-    # ---------- Practice flow ----------
+    # ---------- Practice flow with navigation ----------
     def run_practice(self):
         items = self.practice['items']
-        for item in items:
-            answered = False
-            while not answered and core.getTime() < self.practice_deadline:
-                self.draw_timer(self.practice_deadline)
-                self.draw_question(item['id'], item.get('question_image'))
-                rects = self.create_option_rects()
-                self.draw_options(item.get('options', []), rects)
-                self.win.flip()
-                choice = self.detect_click_on_rects(rects)
-                if choice is not None:
-                    self.practice_answers[item['id']] = choice + 1
-                    answered = True
+        n_items = len(items)
+        if n_items == 0:
+            return
+        self.current_practice_index = 0
+        self.practice_nav_offset = 0
+        while core.getTime() < self.practice_deadline:
+            item = items[self.current_practice_index]
+            # navigation bar
+            nav_items, l_rect, l_txt, r_rect, r_txt = self._build_navigation(items, self.practice_answers, self.current_practice_index, self.practice_nav_offset)
+            for _, rect, label in nav_items:
+                rect.draw(); label.draw()
+            if l_rect: l_rect.draw(); l_txt.draw()
+            if r_rect: r_rect.draw(); r_txt.draw()
+            # timer (always show in practice)
+            self.draw_timer(self.practice_deadline, show_threshold=None, red_threshold=300 if not self.debug_mode else 10)
+            # question + options
+            self.draw_question(item['id'], item.get('question_image'))
+            rects = self.create_option_rects()
+            prev_choice = self.practice_answers.get(item['id'])
+            self.draw_options(item.get('options', []), rects, selected_index=(prev_choice - 1) if prev_choice else None)
+            self.win.flip()
+
+            # option click
+            choice = self.detect_click_on_rects(rects)
+            if choice is not None:
+                self.practice_answers[item['id']] = choice + 1
+                # exit early if all answered
+                if len(self.practice_answers) == n_items:
+                    break
+                # advance to next unanswered
+                next_index = self.current_practice_index
+                for k in range(self.current_practice_index + 1, n_items):
+                    if items[k]['id'] not in self.practice_answers:
+                        next_index = k
+                        break
+                self.current_practice_index = next_index
+                self.practice_nav_offset = self._center_offset(self.current_practice_index, n_items)
+                continue
+
+            # navigation click
+            nav_action = self._handle_navigation_click(nav_items, l_rect, r_rect, 'practice')
+            if nav_action in ('page', 'jump'):
+                self.practice_nav_offset = self._center_offset(self.current_practice_index, n_items)
+                continue
+
             if core.getTime() >= self.practice_deadline:
                 break
-        # brief transition
-        # Removed transitional text; formal instructions appear separately
+        # practice complete
 
     # ---------- Formal flow with TOP navigation ----------
     def build_top_navigation(self):
@@ -459,6 +493,82 @@ class RavenTask:
                     return 'jump'
         return None
 
+    # ---------- Navigation Helpers (new) ----------
+    def _center_offset(self, index: int, total: int) -> int:
+        if total <= self.max_visible_nav:
+            return 0
+        half = self.max_visible_nav // 2
+        offset = index - half
+        if offset < 0:
+            offset = 0
+        max_off = total - self.max_visible_nav
+        if offset > max_off:
+            offset = max_off
+        return offset
+
+    def _build_navigation(self, items, answers_dict, current_index, offset):
+        n = len(items)
+        stims = []
+        start = offset
+        end = min(n, start + self.max_visible_nav)
+        visible = list(range(start, end))
+        if not visible:
+            return stims, None, None, None, None
+        count = len(visible)
+        x_left, x_right = -0.9, 0.9
+        span = x_right - x_left
+        xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [0.0]
+        for i, gi in enumerate(visible):
+            answered = items[gi]['id'] in answers_dict
+            rect = visual.Rect(self.win, width=0.11, height=0.07, pos=(xs[i], self.nav_y),
+                               lineColor='yellow' if gi == current_index else 'white',
+                               lineWidth=3,
+                               fillColor=(0, 0.45, 0) if answered else None)
+            label = visual.TextStim(self.win, text=items[gi]['id'], pos=(xs[i], self.nav_y), height=0.036,
+                                    color='black' if answered else 'white', bold=answered)
+            stims.append((gi, rect, label))
+        left_rect = left_txt = right_rect = right_txt = None
+        if start > 0:
+            left_rect = visual.Rect(self.win, width=0.09, height=0.07, pos=(-0.98, self.nav_y),
+                                    lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
+            left_txt = visual.TextStim(self.win, text='◄', pos=(-0.98, self.nav_y), height=0.05, bold=True)
+        if end < n:
+            right_rect = visual.Rect(self.win, width=0.09, height=0.07, pos=(0.98, self.nav_y),
+                                     lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
+            right_txt = visual.TextStim(self.win, text='►', pos=(0.98, self.nav_y), height=0.05, bold=True)
+        return stims, left_rect, left_txt, right_rect, right_txt
+
+    def _handle_navigation_click(self, nav_items, left_rect, right_rect, section: str):
+        mouse = event.Mouse(win=self.win)
+        if any(mouse.getPressed()):
+            if left_rect and left_rect.contains(mouse):
+                while any(mouse.getPressed()): core.wait(0.01)
+                if section == 'formal':
+                    self.formal_nav_offset = max(0, self.formal_nav_offset - self.max_visible_nav)
+                else:
+                    self.practice_nav_offset = max(0, self.practice_nav_offset - self.max_visible_nav)
+                return 'page'
+            if right_rect and right_rect.contains(mouse):
+                while any(mouse.getPressed()): core.wait(0.01)
+                if section == 'formal':
+                    max_off = max(0, len(self.formal['items']) - self.max_visible_nav)
+                    self.formal_nav_offset = min(max_off, self.formal_nav_offset + self.max_visible_nav)
+                else:
+                    max_off = max(0, len(self.practice['items']) - self.max_visible_nav)
+                    self.practice_nav_offset = min(max_off, self.practice_nav_offset + self.max_visible_nav)
+                return 'page'
+            for gi, rect, label in nav_items:
+                if rect.contains(mouse) or label.contains(mouse):
+                    while any(mouse.getPressed()): core.wait(0.01)
+                    if section == 'formal':
+                        self.current_formal_index = gi
+                        self.formal_nav_offset = self._center_offset(self.current_formal_index, len(self.formal['items']))
+                    else:
+                        self.current_practice_index = gi
+                        self.practice_nav_offset = self._center_offset(self.current_practice_index, len(self.practice['items']))
+                    return 'jump'
+        return None
+
     def run_formal(self):
         items = self.formal['items']
         n_items = len(items)
@@ -466,68 +576,69 @@ class RavenTask:
             return
         while core.getTime() < self.formal_deadline:
             item = items[self.current_formal_index]
-            # Top navigation bar
-            nav_items, left_arrow, right_arrow = self.build_top_navigation()
+            # navigation bar
+            nav_items, l_rect, l_txt, r_rect, r_txt = self._build_navigation(items, self.formal_answers, self.current_formal_index, self.formal_nav_offset)
             for _, rect, label in nav_items:
                 rect.draw(); label.draw()
-            if left_arrow:
-                left_arrow.draw()
-            if right_arrow:
-                right_arrow.draw()
-            # Timer below nav bar
-            # Normal mode: show only in last 10 min (600s), red at 5 min (300s)
-            # Debug mode: show at 20s, red at 10s
+            if l_rect: l_rect.draw(); l_txt.draw()
+            if r_rect: r_rect.draw(); r_txt.draw()
+            # timer conditional display
             if self.debug_mode:
                 self.draw_timer(self.formal_deadline, show_threshold=20, red_threshold=10)
             else:
                 self.draw_timer(self.formal_deadline, show_threshold=600, red_threshold=300)
-            # Question + options
+            # question & options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
             prev_choice = None
             if item['id'] in self.formal_answers:
-                # stored answers are 1-based
                 prev_choice = self.formal_answers[item['id']] - 1
             self.draw_options(item.get('options', []), rects, selected_index=prev_choice)
-            # Bottom instructions and submit
-            bottom_text = '正式测试：请选择一个选项。可点击上方题号回看/修改。'
-            if self.current_formal_index == n_items - 1:
-                bottom_text += ' 最后一题完成后将显示提交按钮。'
-            instruction = visual.TextStim(self.win, text=bottom_text, pos=(0, -0.85), height=0.04)
-            instruction.draw()
+            # submit button only if all answered
             submit_btn = None
-            if self.submit_visible:
-                submit_btn = visual.TextStim(self.win, text='提交答案', pos=(0, -0.9), height=0.06, color='green')
-                submit_btn.draw()
+            if len(self.formal_answers) == n_items:
+                btn_w, btn_h, btn_pos = 0.5, 0.12, (0, -0.88)
+                mouse_local = event.Mouse(win=self.win)
+                temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
+                hovered = temp_rect.contains(mouse_local)
+                fill_col = (0, 0.45, 0) if not hovered else (0, 0.6, 0)
+                outline_col = (0, 0.8, 0) if not hovered else 'yellow'
+                submit_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos, lineColor=outline_col, fillColor=fill_col, lineWidth=4)
+                submit_label = visual.TextStim(self.win, text='提交作答', pos=btn_pos, height=0.055, color='white')
+                submit_rect.draw(); submit_label.draw()
+                submit_btn = submit_rect
             self.win.flip()
 
-            mouse = event.Mouse(win=self.win)
-            # Submit click
-            if submit_btn and any(mouse.getPressed()) and submit_btn.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                self.save_and_exit()
-                return
+            # submit click
+            mouse_global = event.Mouse(win=self.win)
+            if submit_btn and any(mouse_global.getPressed()) and submit_btn.contains(mouse_global):
+                while any(mouse_global.getPressed()): core.wait(0.01)
+                self.save_and_exit(); return
 
-            # Option click
+            # option click
             choice = self.detect_click_on_rects(rects)
             if choice is not None:
                 self.formal_answers[item['id']] = choice + 1
-                if self.current_formal_index == n_items - 1:
-                    self.submit_visible = True
-                else:
-                    self.current_formal_index += 1
+                if len(self.formal_answers) != n_items:
+                    next_index = self.current_formal_index
+                    for k in range(self.current_formal_index + 1, n_items):
+                        if items[k]['id'] not in self.formal_answers:
+                            next_index = k
+                            break
+                    if next_index == self.current_formal_index and self.current_formal_index < n_items - 1:
+                        next_index += 1
+                    self.current_formal_index = min(next_index, n_items - 1)
+                    self.formal_nav_offset = self._center_offset(self.current_formal_index, n_items)
                 continue
 
-            # Navigation click
-            nav_action = self.handle_top_navigation_click(nav_items, left_arrow, right_arrow)
-            if nav_action in ('page', 'jump'):
+            # navigation click
+            nav_action = self._handle_navigation_click(nav_items, l_rect, r_rect, 'formal')
+            if nav_action in ('page','jump'):
+                self.formal_nav_offset = self._center_offset(self.current_formal_index, n_items)
                 continue
 
-            # Check time
             if core.getTime() >= self.formal_deadline:
                 break
-        # Time over or manual exit (not submitted)
         self.show_time_up()
 
     # ---------- End states ----------
