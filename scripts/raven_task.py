@@ -497,13 +497,9 @@ class RavenTask:
                            timer_show_threshold, timer_red_threshold
         """
         if section == 'practice':
-            # Practice: timer always visible, never turns red (unless debug mode)
-            if self.debug_mode:
-                show_t = self.debug_timer_show_threshold
-                red_t = self.debug_timer_red_threshold
-            else:
-                show_t = None  # Always show
-                red_t = None   # Never turn red
+            # Practice: timer always visible, never turns red (same behavior in debug and normal mode)
+            show_t = None  # Always show
+            red_t = None   # Never turn red
 
             return {
                 'config': self.practice,
