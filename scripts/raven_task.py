@@ -144,16 +144,9 @@ class RavenTask:
         self.scale_question = float(layout_cfg.get('scale_question', 1.584))  # enlarge question area (1.2 * 1.32)
         self.scale_option = float(layout_cfg.get('scale_option', 0.749))      # options +5% from previous 0.713
         self.nav_y = float(layout_cfg.get('nav_y', 0.90))
-        self.timer_y = float(layout_cfg.get('timer_y', 0.82))
         # Unified header (timer + progress) vertical position and font size
-        self.header_y = float(layout_cfg.get('header_y', self.timer_y))
+        self.header_y = float(layout_cfg.get('header_y', 0.82))
         self.header_font_size = float(layout_cfg.get('header_font_size', 0.04))
-        # Progress indicator placement controls
-        # Default: align to the right at the same height as the timer (under the nav bar)
-        self.progress_below_nav_dy = float(layout_cfg.get('progress_below_nav_dy', 0.07))  # kept for compatibility
-        self.progress_y = float(layout_cfg.get('progress_y', 0.74))  # legacy
-        self.progress_x = float(layout_cfg.get('progress_x', 0.92))
-        self.progress_font_size = float(layout_cfg.get('progress_font_size', 0.04))
         # Navigation arrow placement (used to align progress to right arrow)
         self.nav_arrow_x_right = float(layout_cfg.get('nav_arrow_x_right', 0.98))
         self.nav_arrow_x_left = float(layout_cfg.get('nav_arrow_x_left', -0.98))
@@ -199,12 +192,12 @@ class RavenTask:
         self.question_img_margin_w = float(layout_cfg.get('question_img_margin_w', 0.05))
         self.question_img_margin_h = float(layout_cfg.get('question_img_margin_h', 0.05))
 
-        # Timer thresholds (configurable)
-        self.practice_timer_show_threshold = layout_cfg.get('practice_timer_show_threshold', None)  # None = always show
-        self.practice_timer_red_threshold = float(layout_cfg.get('practice_timer_red_threshold', 300))
-        self.formal_timer_show_threshold = float(layout_cfg.get('formal_timer_show_threshold', 600))
-        self.formal_timer_red_threshold = float(layout_cfg.get('formal_timer_red_threshold', 300))
-        # Debug mode overrides
+        # Timer thresholds (for formal test only; practice always shows and never turns red)
+        self.timer_show_threshold = layout_cfg.get('timer_show_threshold', 600)  # Formal: show at 10 min remaining
+        self.timer_red_threshold = float(layout_cfg.get('timer_red_threshold', 300))  # Formal: red at 5 min
+        # Section-specific override for formal show threshold (optional)
+        self.formal_timer_show_threshold = layout_cfg.get('formal_timer_show_threshold', self.timer_show_threshold)
+        # Debug mode overrides (apply to both practice and formal)
         self.debug_timer_show_threshold = float(layout_cfg.get('debug_timer_show_threshold', 20))
         self.debug_timer_red_threshold = float(layout_cfg.get('debug_timer_red_threshold', 10))
 
@@ -333,10 +326,10 @@ class RavenTask:
             stim.draw()
 
     def draw_progress(self, answered_count: int, total_count: int):
-        """Draw answered/total progress indicator.
+        """Draw answered/total progress indicator at header_y position.
 
-        - Green when all answered, white otherwise.
-        - Placed near the top using self.progress_y.
+        Green when all answered, white otherwise.
+        Right-aligned to navigation arrow with small margin.
         """
         answered_count = max(0, min(answered_count, total_count))
         txt = f"已答 {answered_count} / 总数 {total_count}"
@@ -506,8 +499,14 @@ class RavenTask:
                            timer_show_threshold, timer_red_threshold
         """
         if section == 'practice':
-            show_t = self.practice_timer_show_threshold
-            red_t = self.practice_timer_red_threshold if not self.debug_mode else self.debug_timer_red_threshold
+            # Practice: timer always visible, never turns red (unless debug mode)
+            if self.debug_mode:
+                show_t = self.debug_timer_show_threshold
+                red_t = self.debug_timer_red_threshold
+            else:
+                show_t = None  # Always show
+                red_t = None   # Never turn red
+
             return {
                 'config': self.practice,
                 'answers': self.practice_answers,
@@ -518,10 +517,14 @@ class RavenTask:
                 'timer_red_threshold': red_t,
             }
         else:  # formal
+            # Formal: configurable thresholds
             if self.debug_mode:
-                show_t, red_t = self.debug_timer_show_threshold, self.debug_timer_red_threshold
+                show_t = self.debug_timer_show_threshold
+                red_t = self.debug_timer_red_threshold
             else:
-                show_t, red_t = self.formal_timer_show_threshold, self.formal_timer_red_threshold
+                show_t = self.formal_timer_show_threshold  # Default 600 (10 min)
+                red_t = self.timer_red_threshold  # Default 300 (5 min)
+
             return {
                 'config': self.formal,
                 'answers': self.formal_answers,
@@ -901,7 +904,7 @@ def suggest_layout_for_resolution(width, height):
         "scale_question": 1.584,
         "scale_option": 0.749,  # baseline options enlarged additional ~5%
         "nav_y": 0.90,
-        "timer_y": 0.82,
+        "header_y": 0.82,
         "option_grid_center_y": -0.425
     }
 
@@ -920,13 +923,13 @@ def suggest_layout_for_resolution(width, height):
         layout["option_grid_center_y"] = -0.35
 
     # Adjust for ultra-wide screens (aspect ratio > 2.0)
-    if aspect_ratio > 2.0:
-        layout["option_grid_center_y"] = -0.3
-    # Adjust for narrow/portrait screens
-    elif aspect_ratio < 1.3:
-        layout["nav_y"] = 0.92
-        layout["timer_y"] = 0.85
-        layout["option_grid_center_y"] = -0.5
+        if aspect_ratio > 2.0:
+            layout["option_grid_center_y"] = -0.3
+        elif aspect_ratio < 1.3:
+            # Adjust for narrow/portrait screens
+            layout["nav_y"] = 0.92
+            layout["header_y"] = 0.85
+            layout["option_grid_center_y"] = -0.5
 
     return layout
 
