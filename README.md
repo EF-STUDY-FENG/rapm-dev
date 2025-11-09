@@ -1,5 +1,9 @@
 # Raven Dev - PsychoPy Stimulus Presentation
 
+[![Test and Build](https://github.com/EF-STUDY-FENG/rapm-dev/actions/workflows/auto-build.yml/badge.svg)](https://github.com/EF-STUDY-FENG/rapm-dev/actions/workflows/auto-build.yml)
+[![GitHub release](https://img.shields.io/github/v/release/EF-STUDY-FENG/rapm-dev?include_prereleases)](https://github.com/EF-STUDY-FENG/rapm-dev/releases)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 This project is designed for stimulus presentation using PsychoPy.
 
 ## Project Structure
@@ -226,6 +230,87 @@ CSV 列：
 
 此模式便于开发者快速验证倒计时显示逻辑、颜色变化和时间到期提醒功能。
 
+## CI/CD 与自动发布
+
+本项目使用 GitHub Actions 实现自动化测试和构建：
+
+### 自动测试 (Main 分支)
+
+每次推送到 `main` 分支时自动运行：
+
+- ✅ Python 语法检查
+- ✅ 单元测试 (路径解析、配置加载等核心功能)
+- ❌ **不构建** exe 文件
+- ❌ **不创建** Release
+
+### 自动构建与发布 (Tag)
+
+创建并推送 tag 时触发完整流程：
+
+```bash
+# 创建版本标签
+git tag v1.0.0
+git push origin v1.0.0
+
+# 或使用 release 前缀
+git tag release-2025.1
+git push origin release-2025.1
+```
+
+自动执行：
+
+- ✅ 语法检查和单元测试
+- ✅ PyInstaller 构建 Windows exe
+- ✅ 上传构建产物 (Artifacts)
+- ✅ 创建 GitHub Release 并附带 exe 文件
+
+### Stimuli 目录说明
+
+**重要**: `stimuli/` 目录被 `.gitignore` 排除，不会提交到 Git 仓库。
+
+#### 开发者使用
+
+在项目根目录创建 `stimuli/` 并添加刺激材料：
+
+```text
+stimuli/
+├── images/
+│   ├── RAPM_t01-1.jpg
+│   ├── RAPM_t01-2.jpg
+│   └── ...
+└── answers.txt
+```
+
+#### 用户使用（下载 Release）
+
+1. 从 [Releases](https://github.com/EF-STUDY-FENG/rapm-dev/releases) 下载最新的 `RavenTask.exe`
+2. 在 exe 所在目录创建 `stimuli/` 文件夹
+3. 添加刺激材料文件
+4. 运行 exe
+
+#### 智能路径检测
+
+程序自动检测 stimuli 位置：
+
+1. **开发模式**: 使用项目根目录的 `stimuli/`
+2. **打包模式**:
+   - 优先检查打包内的 `stimuli/` (可能为空)
+   - 如果为空，自动回退到 exe 旁边的 `stimuli/` 目录
+   - 确保 CI 构建和用户使用都能正常工作
+
+## 测试
+
+### 运行单元测试
+
+```bash
+python tests/test_raven_task.py
+```
+
+测试覆盖：
+
+- 答案文件解析
+- 工具函数 (file_exists_nonempty 等)
+
 ## License
 
-TBD
+本项目采用 MIT License 开源许可。详见 [LICENSE](./LICENSE)。
