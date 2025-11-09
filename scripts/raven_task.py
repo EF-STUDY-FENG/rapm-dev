@@ -18,9 +18,30 @@ except Exception:
 import json
 import os
 import csv
+import sys
 from datetime import datetime
 
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+def _get_base_dir() -> str:
+    """Return base directory for resources, compatible with PyInstaller.
+
+    When frozen with PyInstaller (onefile/onedir), data files are unpacked to
+    sys._MEIPASS (onefile) or placed next to the executable (onedir). We prefer
+    sys._MEIPASS when present; otherwise fall back to project root (../ from this file).
+    """
+    try:
+        # PyInstaller onefile provides a temporary extraction dir
+        meipass = getattr(sys, '_MEIPASS', None)
+        if meipass and os.path.isdir(meipass):
+            return meipass
+        # Onedir: use the executable directory so bundled folders like 'configs/' work
+        if getattr(sys, 'frozen', False):
+            return os.path.dirname(sys.executable)
+    except Exception:
+        pass
+    # Normal dev mode: project root (scripts/..)
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+BASE_DIR = _get_base_dir()
 CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'items.json')
 DATA_DIR = os.path.join(BASE_DIR, 'data')
 LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
@@ -137,6 +158,11 @@ class RavenTask:
         self.practice_deadline = None
         self.formal_deadline = None  # set when formal starts
         self.max_visible_nav = 12
+        # Store timing data for saving
+        self.practice_last_times = {}
+        self.practice_start_time = None
+        self.formal_last_times = {}
+        self.formal_start_time = None
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
         self.layout = dict(layout_cfg)  # 单独 layout
 
@@ -176,15 +202,14 @@ class RavenTask:
             button_text="开始练习"
         )
         # Set practice deadline now
+        self.practice_start_time = core.getTime()
         if self.debug_mode:
             # Debug: 10 seconds for practice
-            practice_start_time = core.getTime()
-            self.practice_deadline = practice_start_time + 10
+            self.practice_deadline = self.practice_start_time + 10
         else:
-            practice_start_time = core.getTime()
-            self.practice_deadline = practice_start_time + self.practice['time_limit_minutes'] * 60
+            self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
         # Run practice section
-        practice_last_times = self.run_section('practice', start_time=practice_start_time)
+        self.practice_last_times = self.run_section('practice', start_time=self.practice_start_time)
         # Practice finished
         # Show formal instructions
         self.show_instruction(
@@ -196,17 +221,16 @@ class RavenTask:
             button_text="开始测试"
         )
         # Set formal deadline (use debug time if in debug mode)
+        self.formal_start_time = core.getTime()
         if self.debug_mode:
             # Debug: 25 seconds (show timer at 20s, red at 10s)
-            formal_start_time = core.getTime()
-            self.formal_deadline = formal_start_time + 25
+            self.formal_deadline = self.formal_start_time + 25
         else:
-            formal_start_time = core.getTime()
-            self.formal_deadline = formal_start_time + self.formal['time_limit_minutes'] * 60
+            self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
         # Run formal section
-        formal_last_times = self.run_section('formal', start_time=formal_start_time)
+        self.formal_last_times = self.run_section('formal', start_time=self.formal_start_time)
         # Save results after both sections
-        self.save_and_exit(practice_last_times, practice_start_time, formal_last_times, formal_start_time)
+        self.save_and_exit()
 
     # ---------- Generic drawing helpers ----------
     def draw_timer(self, deadline, show_threshold=None, red_threshold=None):
@@ -594,8 +618,9 @@ class RavenTask:
                 if any(mouse_global.getPressed()) and submit_btn.contains(mouse_global):
                     while any(mouse_global.getPressed()):
                         core.wait(0.01)
-                    self.save_and_exit()
-                    return
+                    self.formal_last_times = last_times
+                        # Return to let run() handle saving
+                    return last_times
 
             # Handle option click
             choice = self.detect_click_on_rects(rects)
@@ -801,8 +826,11 @@ class RavenTask:
                     return 'jump', current_index, nav_offset
         return None, current_index, nav_offset
 
-    def save_and_exit(self, practice_last_times, practice_start_time, formal_last_times, formal_start_time):
+    def save_and_exit(self):
+        """Save results and show completion message."""
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        # Ensure data directory exists in frozen / portable builds
+        os.makedirs(DATA_DIR, exist_ok=True)
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
         pid = self.participant_info.get('participant_id', '')
         practice_correct = 0
@@ -828,8 +856,8 @@ class RavenTask:
                     if t0 is not None and t2 is not None:
                         time_used = f"{t2-t0:.3f}"
                     writer.writerow([pid, section, iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), time_used])
-            write_section('practice', self.practice.get('items', []), self.practice_answers, practice_last_times, practice_start_time)
-            write_section('formal', self.formal.get('items', []), self.formal_answers, formal_last_times, formal_start_time)
+            write_section('practice', self.practice.get('items', []), self.practice_answers, self.practice_last_times, self.practice_start_time)
+            write_section('formal', self.formal.get('items', []), self.formal_answers, self.formal_last_times, self.formal_start_time)
         meta = {
             'participant': self.participant_info,
             'time_created': datetime.now().isoformat(timespec='seconds'),
@@ -1096,9 +1124,16 @@ def main():
     else:
         win = visual.Window(fullscr=True, color='black', units='norm')
     task = RavenTask(win, config, participant_info=info)
-    task.run()
-    win.close()
-    core.quit()
+    try:
+        task.run()
+    finally:
+        # Clean up window
+        try:
+            win.close()
+        except Exception:
+            pass
+        # In frozen/packaged apps, core.quit() can cause logging errors
+        # Just let the program exit normally instead
 
 if __name__ == '__main__':
     main()

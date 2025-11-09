@@ -4,7 +4,7 @@ This project is designed for stimulus presentation using PsychoPy.
 
 ## Project Structure
 
-```
+```text
 raven-dev/
 ├── stimuli/          # Stimulus files (images, videos, audio, etc.)
 ├── data/             # Output data files
@@ -13,6 +13,46 @@ raven-dev/
 ├── results/          # Analysis results
 └── docs/             # Documentation
 ```
+
+## 打包为可执行文件（.exe）
+
+以下步骤可将本项目打包为 Windows 下可分发的独立程序：
+
+前提：已在当前环境中安装 PsychoPy 及依赖（见上文安装）。
+
+1. 运行一键打包脚本（PowerShell）：
+
+```powershell
+# 无控制台窗口、按目录输出（推荐分发）
+pwsh -File scripts/build_exe.ps1
+
+# 生成单文件 .exe（启动时解压较慢）
+pwsh -File scripts/build_exe.ps1 -OneFile
+
+# 调试时显示控制台窗口
+pwsh -File scripts/build_exe.ps1 -Console
+```
+
+完成后，产物位于 `dist/` 目录下：
+
+- `dist/RavenTask/`（目录模式）或 `dist/RavenTask.exe`（单文件模式）。
+
+1. 打包细节
+
+- 脚本使用 PyInstaller，自动将 `configs/` 与 `stimuli/` 目录一并打包。
+- 代码已适配 PyInstaller（自动识别 `sys._MEIPASS` 与 `sys.executable`），运行时能正确定位资源文件。
+- 如需自定义图标，可执行：
+
+```powershell
+pwsh -File scripts/build_exe.ps1 -Icon .\assets\app.ico
+```
+
+1. 常见问题
+
+- 若提示未找到 `pyinstaller`，脚本会自动通过 `pip` 安装。
+- 首次运行单文件模式时启动较慢属于正常现象（需解压临时目录）。
+- 如果你在 Builder/standalone PsychoPy 中遇到缺字库或声音模块问题，本项目未使用声音模块；如需加入，请在 `build_exe.ps1` 中添加相应 `--hidden-import`。
+
 
 ## Requirements
 
