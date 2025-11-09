@@ -366,14 +366,16 @@ class RavenTask:
 
     def show_instruction(self, text: str, button_text: str = "继续"):
         """Display centered multi-line instruction with a styled button.
-        Button becomes clickable only after self.instruction_button_delay seconds.
+        In normal mode, the button becomes clickable only after self.instruction_button_delay seconds;
+        in debug mode, it's clickable immediately (no countdown).
         """
         lines = (text or "").split("\n")
         center_y = self.instruction_center_y
         line_h = self.instruction_line_height
         spacing = self.instruction_line_spacing
         show_start = core.getTime()
-        delay = self.instruction_button_delay
+        # In debug mode, make the instruction button immediately clickable (no countdown)
+        delay = 0.0 if self.debug_mode else self.instruction_button_delay
         btn_w = self.instruction_button_width
         btn_h = self.instruction_button_height
         btn_pos = (self.instruction_button_x, self.instruction_button_y)
