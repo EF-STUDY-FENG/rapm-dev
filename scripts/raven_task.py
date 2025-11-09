@@ -20,9 +20,10 @@ import os
 import csv
 from datetime import datetime
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'configs', 'raven_config.json')
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'configs', 'items.json')
 DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'data')
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+LAYOUT_CONFIG_PATH = os.path.join(os.path.dirname(__file__), '..', 'configs', 'layout.json')
 
 
 def file_exists_nonempty(path: str) -> bool:
@@ -121,8 +122,13 @@ def build_items_from_pattern(pattern: str, count: int, answers: list[int], start
 class RavenTask:
     def __init__(self, win, config, participant_info=None):
         self.win = win
-        self.practice = config['practice']
-        self.formal = config['formal']
+        # 拆分 items 与 layout，更语义化
+        self.items = {
+            'practice': config['practice'],
+            'formal': config['formal']
+        }
+        self.practice = self.items['practice']
+        self.formal = self.items['formal']
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
@@ -134,72 +140,9 @@ class RavenTask:
         self.formal_deadline = None  # set when formal starts
         # navigation strip window size
         self.max_visible_nav = 12
-        # Layout tuning (can be overridden in config.layout)
+        # Layout dict (all UI params reside here to avoid many instance attributes)
         layout_cfg = config.get('layout', {}) if isinstance(config, dict) else {}
-        self.scale_question = float(layout_cfg.get('scale_question', 1.584))  # enlarge question area (1.2 * 1.32)
-        self.scale_option = float(layout_cfg.get('scale_option', 0.749))      # options +5% from previous 0.713
-        self.nav_y = float(layout_cfg.get('nav_y', 0.90))
-        # Unified header (timer + progress) vertical position and font size
-        self.header_y = float(layout_cfg.get('header_y', 0.82))
-        self.header_font_size = float(layout_cfg.get('header_font_size', 0.04))
-        # Navigation arrow placement (used to align progress to right arrow)
-        self.nav_arrow_x_right = float(layout_cfg.get('nav_arrow_x_right', 0.98))
-        self.nav_arrow_x_left = float(layout_cfg.get('nav_arrow_x_left', -0.98))
-        self.nav_arrow_w = float(layout_cfg.get('nav_arrow_w', 0.09))
-        # Gap between arrows and the first/last nav item to visually separate them
-        self.nav_gap = float(layout_cfg.get('nav_gap', 0.02))
-        self.progress_right_margin = float(layout_cfg.get('progress_right_margin', 0.01))
-        self.option_grid_center_y = float(layout_cfg.get('option_grid_center_y', -0.425))
-        self.option_cols = int(layout_cfg.get('option_cols', 4))
-        self.option_rows = int(layout_cfg.get('option_rows', 2))
-        self.dx_base = float(layout_cfg.get('option_dx', 0.45))
-        self.dy_base = float(layout_cfg.get('option_dy', 0.45))
-        self.option_rect_w_base = float(layout_cfg.get('option_rect_w', 0.4))
-        self.option_rect_h_base = float(layout_cfg.get('option_rect_h', 0.35))
-        self.option_img_max_w_base = float(layout_cfg.get('option_img_w', 0.36))
-        self.option_img_max_h_base = float(layout_cfg.get('option_img_h', 0.28))
-        # Option image fill ratio inside rect (0-1). Higher -> fills more, keep some border visible.
-        self.option_img_fill = float(layout_cfg.get('option_img_fill', 0.92))
-        # Instruction line spacing multiplier
-        self.instruction_line_spacing = float(layout_cfg.get('instruction_line_spacing', 1.5))
-        # Instruction button delay (seconds) before enabling click
-        self.instruction_button_delay = float(layout_cfg.get('instruction_button_delay', 5.0))
-        # Instruction screen layout (reduce magic numbers in show_instruction)
-        self.instruction_center_y = float(layout_cfg.get('instruction_center_y', 0.15))
-        self.instruction_line_height = float(layout_cfg.get('instruction_line_height', 0.055))
-        self.instruction_button_y = float(layout_cfg.get('instruction_button_y', -0.38))
-
-        # Unified button layout properties (used by both instruction and submit buttons)
-        self.button_width = float(layout_cfg.get('button_width', 0.52))
-        self.button_height = float(layout_cfg.get('button_height', 0.14))
-        self.button_x = float(layout_cfg.get('button_x', 0.0))
-        self.button_label_height = float(layout_cfg.get('button_label_height', 0.055))
-        self.button_line_width = int(layout_cfg.get('button_line_width', 4))
-        # Button color set (can be lists or strings)
-        self.button_fill_disabled = layout_cfg.get('button_fill_disabled', [0.15, 0.15, 0.15])
-        self.button_fill_normal = layout_cfg.get('button_fill_normal', [0, 0.4, 0])
-        self.button_fill_hover = layout_cfg.get('button_fill_hover', [0, 0.6, 0])
-        self.button_outline_disabled = layout_cfg.get('button_outline_disabled', [0.5, 0.5, 0.5])
-        self.button_outline_normal = layout_cfg.get('button_outline_normal', [0, 0.8, 0])
-        self.button_outline_hover = layout_cfg.get('button_outline_hover', 'yellow')
-
-        # Submit button Y position (formal only)
-        self.submit_button_y = float(layout_cfg.get('submit_button_y', -0.88))
-
-        self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
-        self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
-        self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
-        self.question_img_margin_w = float(layout_cfg.get('question_img_margin_w', 0.05))
-        self.question_img_margin_h = float(layout_cfg.get('question_img_margin_h', 0.05))
-
-        # Timer thresholds (for formal test only; practice always shows and never turns red)
-        self.timer_show_threshold = layout_cfg.get('timer_show_threshold', 600)  # Formal: show at 10 min remaining
-        self.timer_red_threshold = float(layout_cfg.get('timer_red_threshold', 300))  # Formal: red at 5 min
-        # Section-specific override for formal show threshold (optional)
-        self.formal_timer_show_threshold = layout_cfg.get('formal_timer_show_threshold', self.timer_show_threshold)
-        # Debug mode overrides (apply to both practice and formal)
-        self.debug_timer_show_threshold = float(layout_cfg.get('debug_timer_show_threshold', 20))
-        self.debug_timer_red_threshold = float(layout_cfg.get('debug_timer_red_threshold', 10))
+        self.layout = dict(layout_cfg)  # 单独 layout
 
         # If config uses patterns + answers, generate items accordingly
         try:
@@ -219,6 +162,13 @@ class RavenTask:
             if f_count and f_pattern:
                 self.formal['items'] = build_items_from_pattern(f_pattern, f_count, answers, p_count, 'F')
 
+    # ---------- Layout accessor ----------
+    def L(self, key, default=None):
+        """Convenience accessor for layout values with defaults."""
+        try:
+            return self.layout.get(key, default)
+        except Exception:
+            return default
     def run(self):
         """Main entry point: run practice then formal test"""
         # Show practice instructions
@@ -279,7 +229,13 @@ class RavenTask:
         # Change color to red if threshold is set and remaining time is low
         color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
 
-        timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.header_y), height=self.header_font_size, color=color)
+        timerStim = visual.TextStim(
+            self.win,
+            text=timer_text,
+            pos=(0, self.L('header_y', 0.82)),
+            height=self.L('header_font_size', 0.04),
+            color=color
+        )
         timerStim.draw()
 
     def draw_multiline(self, lines, center_y: float, line_height: float, spacing: float = 1.5,
@@ -324,11 +280,11 @@ class RavenTask:
         txt = f"已答 {answered_count} / 总数 {total_count}"
         color = 'green' if total_count > 0 and answered_count >= total_count else 'white'
         # Place at right side on the same height as the timer (i.e., under nav), right-aligned
-        y = self.header_y
+        y = self.L('header_y', 0.82)
         # Align progress left edge to the left edge of the right arrow box (with a small margin)
-        right_edge_x = self.nav_arrow_x_right - (self.nav_arrow_w / 2.0)
-        x = right_edge_x - self.progress_right_margin
-        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.header_font_size, color=color)
+        right_edge_x = self.L('nav_arrow_x_right', 0.98) - (self.L('nav_arrow_w', 0.09) / 2.0)
+        x = right_edge_x - self.L('progress_right_margin', 0.01)
+        progStim = visual.TextStim(self.win, text=txt, pos=(x, y), height=self.L('header_font_size', 0.04), color=color)
         try:
             progStim.anchorHoriz = 'right'
         except Exception:
@@ -359,17 +315,17 @@ class RavenTask:
         in debug mode, it's clickable immediately (no countdown).
         """
         lines = (text or "").split("\n")
-        center_y = self.instruction_center_y
-        line_h = self.instruction_line_height
-        spacing = self.instruction_line_spacing
+        center_y = self.L('instruction_center_y', 0.15)
+        line_h = self.L('instruction_line_height', 0.055)
+        spacing = self.L('instruction_line_spacing', 1.5)
         show_start = core.getTime()
         # In debug mode, make the instruction button immediately clickable (no countdown)
-        delay = 0.0 if self.debug_mode else self.instruction_button_delay
-        btn_w = self.button_width
-        btn_h = self.button_height
-        btn_pos = (self.button_x, self.instruction_button_y)
-        label_h = self.button_label_height
-        line_w = self.button_line_width
+        delay = 0.0 if self.debug_mode else self.L('instruction_button_delay', 5.0)
+        btn_w = self.L('button_width', 0.52)
+        btn_h = self.L('button_height', 0.14)
+        btn_pos = (self.L('button_x', 0.0), self.L('instruction_button_y', -0.38))
+        label_h = self.L('button_label_height', 0.055)
+        line_w = self.L('button_line_width', 4)
         mouse = event.Mouse(win=self.win)
         clickable = False
 
@@ -385,11 +341,11 @@ class RavenTask:
             if clickable:
                 temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
                 hovered = temp_rect.contains(mouse)
-                fill_col = self.button_fill_hover if hovered else self.button_fill_normal
-                outline_col = self.button_outline_hover if hovered else self.button_outline_normal
+                fill_col = self.L('button_fill_hover', [0, 0.6, 0]) if hovered else self.L('button_fill_normal', [0, 0.4, 0])
+                outline_col = self.L('button_outline_hover', 'yellow') if hovered else self.L('button_outline_normal', [0, 0.8, 0])
             else:
-                fill_col = self.button_fill_disabled
-                outline_col = self.button_outline_disabled
+                fill_col = self.L('button_fill_disabled', [0.15, 0.15, 0.15])
+                outline_col = self.L('button_outline_disabled', [0.5, 0.5, 0.5])
 
             btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
                                     lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
@@ -406,121 +362,140 @@ class RavenTask:
 
     def draw_question(self, item_id: str, image_path: str | None):
         # Question area at top center (no border frame)
-        q_w = self.question_box_w_base * self.scale_question
-        q_h = self.question_box_h_base * self.scale_question
+        q_w = self.L('question_box_w', 1.4) * self.L('scale_question', 1.584)
+        q_h = self.L('question_box_h', 0.5) * self.L('scale_question', 1.584)
         # Remove the white border box - only draw the image
         if image_path and file_exists_nonempty(image_path):
             try:
-                max_w = q_w - self.question_img_margin_w
-                max_h = q_h - self.question_img_margin_h
+                max_w = q_w - self.L('question_img_margin_w', 0.05)
+                max_h = q_h - self.L('question_img_margin_h', 0.05)
                 disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
-                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.question_box_y), size=(disp_w, disp_h))
+                img = visual.ImageStim(self.win, image=resolve_path(image_path), pos=(0, self.L('question_box_y', 0.35)), size=(disp_w, disp_h))
                 img.draw()
             except Exception:
-                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.question_box_y), height=0.06)
+                txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片加载失败)", pos=(0, self.L('question_box_y', 0.35)), height=0.06)
                 txt.draw()
         else:
-            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.question_box_y), height=0.06)
+            txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y', 0.35)), height=0.06)
             txt.draw()
 
     def create_option_rects(self):
-        rects = []
-        # Use absolute spacing so shrinking options doesn't make grid too tight
-        dx = self.dx_base
-        dy = self.dy_base
-        cols = self.option_cols
-        rows = self.option_rows
-        total_w = dx * (cols - 1)
-        left = - total_w / 2.0
-        center_y = self.option_grid_center_y
-        rect_w = self.option_rect_w_base * self.scale_option
-        rect_h = self.option_rect_h_base * self.scale_option
-        for i in range(8):
-            c = i % cols
-            r = i // cols
-            x = left + c * dx
-            y = center_y + ((rows - 1) / 2.0 - r) * dy
-            rect = visual.Rect(self.win, width=rect_w, height=rect_h, pos=(x, y), lineColor='white', fillColor=None)
-            # No numeric labels on options; keep placeholder None for compatibility
-            rects.append((rect, None))
-        return rects
+        """生成当前题目选项的矩形区域列表。
+
+        Returns:
+            list[visual.Rect]: 与选项 index 对应的矩形列表（按顺序）。
+        """
+        cols = int(self.L('option_cols', 4))
+        rows = int(self.L('option_rows', 2))
+        dx = self.L('option_dx', 0.45)
+        dy = self.L('option_dy', 0.45)
+        rect_w = self.L('option_rect_w', 0.4) * self.L('scale_option', 0.749)
+        rect_h = self.L('option_rect_h', 0.35) * self.L('scale_option', 0.749)
+        center_y = self.L('option_grid_center_y', -0.425)
+
+        rects: list[visual.Rect] = []
+        total_cells = cols * rows
+        for r in range(rows):
+            for c in range(cols):
+                idx = r * cols + c
+                # 统一坐标：列 0 在左，行 0 在上
+                x = (c - (cols - 1) / 2) * dx
+                y = center_y - (r - (rows - 1) / 2) * dy
+                rect = visual.Rect(
+                    self.win,
+                    width=rect_w,
+                    height=rect_h,
+                    pos=(x, y),
+                    lineColor='white',
+                    lineWidth=2,
+                    fillColor=None
+                )
+                rects.append(rect)
+        return rects[:total_cells]
 
     def draw_options(self, option_paths, rects, selected_index=None):
-        """Draw option rectangles; highlight selected with thicker yellow border."""
-        for idx, (rect, _label) in enumerate(rects):
-            # highlight previously selected
-            if selected_index is not None and idx == selected_index:
+        """绘制选项矩形与图片。
+
+        Args:
+            option_paths: 图片路径列表（最多与 rects 数量相同）。
+            rects: create_option_rects 返回的矩形列表。
+            selected_index: 已选择的选项索引（0 基），None 表示未选择。
+        """
+        for i, rect in enumerate(rects):
+            # 高亮已选
+            if selected_index is not None and i == selected_index:
                 rect.lineColor = 'yellow'
-                rect.lineWidth = 6
+                rect.lineWidth = 4
+                rect.fillColor = (0, 0.45, 0)
             else:
                 rect.lineColor = 'white'
                 rect.lineWidth = 2
-            if idx < len(option_paths) and file_exists_nonempty(option_paths[idx]):
-                try:
-                    # Fill image up to configured ratio of rect size, preserving aspect ratio
-                    ratio = max(0.5, min(self.option_img_fill, 0.98))
-                    max_w = rect.width * ratio
-                    max_h = rect.height * ratio
-                    disp_w, disp_h = fitted_size_keep_aspect(option_paths[idx], max_w, max_h)
-                    img = visual.ImageStim(self.win, image=resolve_path(option_paths[idx]), pos=rect.pos, size=(disp_w, disp_h))
-                    img.draw()
-                except Exception:
-                    pass
+                rect.fillColor = None
             rect.draw()
 
+            if i < len(option_paths):
+                path = option_paths[i]
+                if path and file_exists_nonempty(path):
+                    max_w = self.L('option_img_w', 0.36) * self.L('scale_option', 0.749)
+                    max_h = self.L('option_img_h', 0.28) * self.L('scale_option', 0.749)
+                    disp_w, disp_h = fitted_size_keep_aspect(path, max_w, max_h)
+                    img = visual.ImageStim(
+                        self.win,
+                        image=resolve_path(path),
+                        pos=rect.pos,
+                        size=(disp_w * self.L('option_img_fill', 0.92), disp_h * self.L('option_img_fill', 0.92))
+                    )
+                    img.draw()
+                else:
+                    placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray')
+                    placeholder.draw()
+
     def detect_click_on_rects(self, rects):
-        mouse = event.Mouse(win=self.win)
-        if any(mouse.getPressed()):
-            for idx, (rect, _) in enumerate(rects):
-                if rect.contains(mouse):
-                    while any(mouse.getPressed()):
-                        core.wait(0.01)
-                    return idx
-        return None
-
-    # ---------- Shared test flow logic ----------
-    def _get_section_config(self, section: str):
-        """Get configuration for a test section.
-
-        Args:
-            section: 'practice' or 'formal'
+        """检测是否点击到某个选项矩形。
 
         Returns:
-            dict with keys: config, answers, deadline, show_submit, auto_save_on_timeout,
-                           timer_show_threshold, timer_red_threshold
+            int | None: 点击的索引（0 基），无点击返回 None。
         """
-        if section == 'practice':
-            # Practice: timer always visible, never turns red (same behavior in debug and normal mode)
-            show_t = None  # Always show
-            red_t = None   # Never turn red
+        mouse = event.Mouse(win=self.win)
+        if not any(mouse.getPressed()):
+            return None
+        for i, rect in enumerate(rects):
+            if rect.contains(mouse):
+                # 等待释放，避免长按重复
+                while any(mouse.getPressed()):
+                    core.wait(0.01)
+                return i
+        return None
 
+    def _get_section_config(self, section: str):
+        """统一生成某测试阶段的运行参数集。"""
+        if section == 'practice':
+            # 练习：计时器始终显示(目前逻辑: 显示，无红色提示) -> show_threshold=None, red_threshold=None
             return {
                 'config': self.practice,
                 'answers': self.practice_answers,
                 'deadline': self.practice_deadline,
                 'show_submit': False,
                 'auto_save_on_timeout': False,
-                'timer_show_threshold': show_t,
-                'timer_red_threshold': red_t,
+                'timer_show_threshold': None,
+                'timer_red_threshold': None,
             }
-        else:  # formal
-            # Formal: configurable thresholds
-            if self.debug_mode:
-                show_t = self.debug_timer_show_threshold
-                red_t = self.debug_timer_red_threshold
-            else:
-                show_t = self.formal_timer_show_threshold  # Default 600 (10 min)
-                red_t = self.timer_red_threshold  # Default 300 (5 min)
-
-            return {
-                'config': self.formal,
-                'answers': self.formal_answers,
-                'deadline': self.formal_deadline,
-                'show_submit': True,
-                'auto_save_on_timeout': True,
-                'timer_show_threshold': show_t,
-                'timer_red_threshold': red_t,
-            }
+        # formal
+        if self.debug_mode:
+            show_t = self.L('debug_timer_show_threshold', 20)
+            red_t = self.L('debug_timer_red_threshold', 10)
+        else:
+            show_t = self.L('formal_timer_show_threshold', 600)
+            red_t = self.L('timer_red_threshold', 300)
+        return {
+            'config': self.formal,
+            'answers': self.formal_answers,
+            'deadline': self.formal_deadline,
+            'show_submit': True,
+            'auto_save_on_timeout': True,
+            'timer_show_threshold': show_t,
+            'timer_red_threshold': red_t,
+        }
 
     def _find_next_unanswered(self, items, answers_dict, current_index):
         """Find the next unanswered item index.
@@ -657,21 +632,30 @@ class RavenTask:
         Returns:
             visual.Rect: The submit button rectangle for click detection
         """
-        btn_pos = (self.button_x, self.submit_button_y)
+        btn_pos = (self.L('button_x', 0.0), self.L('submit_button_y', -0.88))
         mouse_local = event.Mouse(win=self.win)
-        temp_rect = visual.Rect(self.win, width=self.button_width,
-                               height=self.button_height, pos=btn_pos)
+        temp_rect = visual.Rect(self.win, width=self.L('button_width', 0.52),
+                               height=self.L('button_height', 0.14), pos=btn_pos)
         hovered = temp_rect.contains(mouse_local)
+        fill_col = self.L('button_fill_hover', [0,0.6,0]) if hovered else self.L('button_fill_normal', [0,0.4,0])
+        outline_col = self.L('button_outline_hover', 'yellow') if hovered else self.L('button_outline_normal', [0,0.8,0])
 
-        fill_col = self.button_fill_hover if hovered else self.button_fill_normal
-        outline_col = self.button_outline_hover if hovered else self.button_outline_normal
-
-        submit_rect = visual.Rect(self.win, width=self.button_width,
-                                 height=self.button_height, pos=btn_pos,
-                                 lineColor=outline_col, fillColor=fill_col,
-                                 lineWidth=self.button_line_width)
-        submit_label = visual.TextStim(self.win, text='提交作答', pos=btn_pos,
-                                      height=self.button_label_height, color='white')
+        submit_rect = visual.Rect(
+            self.win,
+            width=self.L('button_width', 0.52),
+            height=self.L('button_height', 0.14),
+            pos=btn_pos,
+            lineColor=outline_col,
+            fillColor=fill_col,
+            lineWidth=self.L('button_line_width', 4)
+        )
+        submit_label = visual.TextStim(
+            self.win,
+            text='提交作答',
+            pos=btn_pos,
+            height=self.L('button_label_height', 0.055),
+            color='white'
+        )
         submit_rect.draw()
         submit_label.draw()
         return submit_rect
@@ -690,77 +674,125 @@ class RavenTask:
         if offset > max_off:
             offset = max_off
         return offset
-
     def _build_navigation(self, items, answers_dict, current_index, offset):
+        """Construct navigation stimuli (question number buttons + page arrows)."""
         n = len(items)
-        stims = []
         start = offset
         end = min(n, start + self.max_visible_nav)
         visible = list(range(start, end))
+        stims = []
         if not visible:
             return stims, None, None, None, None
+
         count = len(visible)
-        # Reserve horizontal space between left/right arrows according to configured positions/width
-        # Add nav_gap to visually separate arrows from the nav items
-        x_left = self.nav_arrow_x_left + self.nav_arrow_w + self.nav_gap
-        x_right = self.nav_arrow_x_right - self.nav_arrow_w - self.nav_gap
+        nav_y = self.L('nav_y', 0.90)
+        x_left_edge = self.L('nav_arrow_x_left', -0.98)
+        x_right_edge = self.L('nav_arrow_x_right', 0.98)
+        arrow_w = self.L('nav_arrow_w', 0.09)
+        gap = self.L('nav_gap', 0.02)
+
+        x_left = x_left_edge + arrow_w + gap
+        x_right = x_right_edge - arrow_w - gap
         span = x_right - x_left
-        xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [0.0]
+        xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [ (x_left + x_right) / 2.0 ]
+
+        item_w = self.L('nav_item_w', 0.11)
+        item_h = self.L('nav_item_h', 0.07)
+        label_h = self.L('nav_label_height', 0.036)
+
         for i, gi in enumerate(visible):
             answered = items[gi]['id'] in answers_dict
-            rect = visual.Rect(self.win, width=0.11, height=0.07, pos=(xs[i], self.nav_y),
-                               lineColor='yellow' if gi == current_index else 'white',
-                               lineWidth=3,
-                               fillColor=(0, 0.45, 0) if answered else None)
-            # Show only numeric sequence (drop section prefix like 'P'/'F' and leading zeros)
+            rect = visual.Rect(
+                self.win,
+                width=item_w,
+                height=item_h,
+                pos=(xs[i], nav_y),
+                lineColor='yellow' if gi == current_index else 'white',
+                lineWidth=3,
+                fillColor=(0, 0.45, 0) if answered else None,
+            )
             _raw_id = items[gi]['id'] or ''
             _digits = ''.join([ch for ch in _raw_id if ch.isdigit()])
             _label_txt = str(int(_digits)) if _digits else _raw_id
-            label = visual.TextStim(self.win, text=_label_txt, pos=(xs[i], self.nav_y), height=0.036,
-                                    color='black' if answered else 'white', bold=answered)
+            label = visual.TextStim(
+                self.win,
+                text=_label_txt,
+                pos=(xs[i], nav_y),
+                height=label_h,
+                color='black' if answered else 'white',
+                bold=answered,
+            )
             stims.append((gi, rect, label))
+
         left_rect = left_txt = right_rect = right_txt = None
+        arrow_h = item_h
+        arrow_label_h = self.L('nav_arrow_label_height', 0.05)
         if start > 0:
-            left_rect = visual.Rect(self.win, width=self.nav_arrow_w, height=0.07, pos=(self.nav_arrow_x_left, self.nav_y),
-                                    lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
-            left_txt = visual.TextStim(self.win, text='◄', pos=(self.nav_arrow_x_left, self.nav_y), height=0.05, bold=True)
+            left_rect = visual.Rect(
+                self.win,
+                width=arrow_w,
+                height=arrow_h,
+                pos=(x_left_edge, nav_y),
+                lineColor='white',
+                lineWidth=3,
+                fillColor=(0.15, 0.15, 0.15),
+            )
+            left_txt = visual.TextStim(
+                self.win,
+                text='◄',
+                pos=(x_left_edge, nav_y),
+                height=arrow_label_h,
+                bold=True,
+            )
         if end < n:
-            right_rect = visual.Rect(self.win, width=self.nav_arrow_w, height=0.07, pos=(self.nav_arrow_x_right, self.nav_y),
-                                     lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15))
-            right_txt = visual.TextStim(self.win, text='►', pos=(self.nav_arrow_x_right, self.nav_y), height=0.05, bold=True)
+            right_rect = visual.Rect(
+                self.win,
+                width=arrow_w,
+                height=arrow_h,
+                pos=(x_right_edge, nav_y),
+                lineColor='white',
+                lineWidth=3,
+                fillColor=(0.15, 0.15, 0.15),
+            )
+            right_txt = visual.TextStim(
+                self.win,
+                text='►',
+                pos=(x_right_edge, nav_y),
+                height=arrow_label_h,
+                bold=True,
+            )
         return stims, left_rect, left_txt, right_rect, right_txt
 
     def _handle_navigation_click(self, nav_items, left_rect, right_rect, section: str, items, current_index, nav_offset):
-        """Handle navigation clicks and return action with updated local state.
+        """Handle navigation clicks.
 
-        Returns: (action, current_index, nav_offset)
-        action in {'jump','page',None}
+        Returns:
+            (action, current_index, nav_offset) where action in {'jump','page',None}
         """
         mouse = event.Mouse(win=self.win)
         if any(mouse.getPressed()):
             if left_rect and left_rect.contains(mouse):
-                while any(mouse.getPressed()): core.wait(0.01)
+                while any(mouse.getPressed()):
+                    core.wait(0.01)
                 nav_offset = max(0, nav_offset - self.max_visible_nav)
                 return 'page', current_index, nav_offset
             if right_rect and right_rect.contains(mouse):
-                while any(mouse.getPressed()): core.wait(0.01)
+                while any(mouse.getPressed()):
+                    core.wait(0.01)
                 max_off = max(0, len(items) - self.max_visible_nav)
                 nav_offset = min(max_off, nav_offset + self.max_visible_nav)
                 return 'page', current_index, nav_offset
             for gi, rect, label in nav_items:
                 if rect.contains(mouse) or label.contains(mouse):
-                    while any(mouse.getPressed()): core.wait(0.01)
+                    while any(mouse.getPressed()):
+                        core.wait(0.01)
                     current_index = gi
-                    nav_offset = self._center_offset(current_index, len(items))
                     return 'jump', current_index, nav_offset
         return None, current_index, nav_offset
 
-    # ---------- End states ----------
     def save_and_exit(self):
-        os.makedirs(DATA_DIR, exist_ok=True)
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
-        # write CSV answers with correctness info
         pid = self.participant_info.get('participant_id', '')
         tnow = datetime.now().isoformat(timespec='seconds')
         practice_correct = 0
@@ -768,7 +800,6 @@ class RavenTask:
         with open(out_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow(['participant_id', 'section', 'item_id', 'answer', 'correct', 'is_correct', 'timestamp'])
-            # practice items
             for item in self.practice.get('items', []):
                 iid = item.get('id')
                 ans = self.practice_answers.get(iid)
@@ -777,7 +808,6 @@ class RavenTask:
                 if is_correct:
                     practice_correct += 1
                 writer.writerow([pid, 'practice', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
-            # formal items
             for item in self.formal.get('items', []):
                 iid = item.get('id')
                 ans = self.formal_answers.get(iid)
@@ -786,7 +816,6 @@ class RavenTask:
                 if is_correct:
                     formal_correct += 1
                 writer.writerow([pid, 'formal', iid, ans if ans is not None else '', correct if correct is not None else '', '1' if is_correct else ('0' if is_correct is not None else ''), tnow])
-        # write a metadata json as well
         meta = {
             'participant': self.participant_info,
             'time_created': datetime.now().isoformat(timespec='seconds'),
@@ -811,7 +840,6 @@ class RavenTask:
                 json.dump(meta, mf, ensure_ascii=False, indent=2)
         except Exception:
             pass
-        # Display final completion message (two lines, 1.5x line spacing) via unified helper
         lines = ['作答完成！', '感谢您的作答！']
         colors = ['green', 'white']
         for _ in range(300):  # ~5s
@@ -925,74 +953,106 @@ def suggest_layout_for_resolution(width, height):
     return layout
 
 
-def update_config_with_layout(config_path, layout_params):
+def update_config_with_layout(layout_path, layout_params):
     """
-    Update the config file with suggested layout parameters.
-    Creates a backup of the original config.
+    Write layout parameters to a dedicated layout config file.
+    Creates a backup of the original layout file if present.
+    Returns the layout dict that was written.
     """
-    # Read existing config
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = json.load(f)
+    os.makedirs(os.path.dirname(layout_path), exist_ok=True)
 
-    # Backup original if layout section exists
-    if 'layout' in config:
-        backup_path = config_path + '.backup'
-        if not os.path.exists(backup_path):
-            with open(backup_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
+    # Backup existing layout file once
+    if os.path.exists(layout_path):
+        try:
+            with open(layout_path, 'r', encoding='utf-8') as f:
+                existing = json.load(f)
+        except Exception:
+            existing = None
+        if existing is not None:
+            backup_path = layout_path + '.backup'
+            if not os.path.exists(backup_path):
+                with open(backup_path, 'w', encoding='utf-8') as bf:
+                    json.dump(existing, bf, indent=2, ensure_ascii=False)
 
-    # Update layout section
-    config['layout'] = layout_params
+    with open(layout_path, 'w', encoding='utf-8') as f:
+        json.dump(layout_params, f, indent=2, ensure_ascii=False)
 
-    # Write updated config
-    with open(config_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
-
-    return config
+    return layout_params
 
 
 def check_and_suggest_layout(config_path):
     """
-    Check screen resolution and suggest layout if needed.
-    Returns updated config.
+    Load base config and a separate layout config file if present.
+    If layout file is missing, optionally suggest one based on screen resolution.
+    Returns combined config dict with a 'layout' key populated from the layout file.
     """
-    resolution = detect_screen_resolution()
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = json.load(f)
 
-    if resolution:
-        width, height = resolution
-        print(f"检测到屏幕分辨率: {width}x{height}")
+    # Try load layout file
+    layout = None
+    if os.path.exists(LAYOUT_CONFIG_PATH):
+        try:
+            with open(LAYOUT_CONFIG_PATH, 'r', encoding='utf-8') as lf:
+                layout = json.load(lf)
+            print(f"使用独立布局文件: {os.path.basename(LAYOUT_CONFIG_PATH)}")
+        except Exception:
+            layout = None
+    # Legacy fallback: raven_layout.json -> migrate to layout.json
+    if layout is None:
+        legacy = os.path.join(os.path.dirname(LAYOUT_CONFIG_PATH), 'raven_layout.json')
+        if os.path.exists(legacy):
+            try:
+                with open(legacy, 'r', encoding='utf-8') as lf:
+                    layout = json.load(lf)
+                # write to new path for future runs
+                update_config_with_layout(LAYOUT_CONFIG_PATH, layout)
+                print("已从 raven_layout.json 迁移到 layout.json")
+            except Exception:
+                layout = None
 
-        # Check if config has layout section
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+    # Backward compatibility: fallback to embedded layout
+    if layout is None:
+        embedded = config.get('layout')
+        if embedded:
+            layout = embedded
+            # Optional: migrate to standalone file
+            try:
+                update_config_with_layout(LAYOUT_CONFIG_PATH, layout)
+                print("已从主配置迁移布局到独立文件")
+            except Exception:
+                pass
 
-        if 'layout' not in config or not config['layout']:
-            # No layout configured, suggest one
-            print("配置文件中未找到布局设置，正在生成建议参数...")
+    # If still no layout, suggest based on resolution
+    if not layout:
+        resolution = detect_screen_resolution()
+        if resolution:
+            width, height = resolution
+            print(f"检测到屏幕分辨率: {width}x{height}")
+            print("未找到布局文件，正在生成建议参数...")
             suggested = suggest_layout_for_resolution(width, height)
             print(f"建议的布局参数:\n{json.dumps(suggested, indent=2, ensure_ascii=False)}")
 
-            # Ask user if they want to apply
             dlg = gui.Dlg(title='布局建议')
             dlg.addText(f'检测到屏幕分辨率: {width}x{height}')
-            dlg.addText(f'建议应用自动优化的布局参数')
+            dlg.addText('建议应用自动优化的布局参数')
             dlg.addText(f'scale_question: {suggested["scale_question"]}')
             dlg.addText(f'scale_option: {suggested["scale_option"]}')
             dlg.addField('应用建议布局?', initial=True)
             result = dlg.show()
 
             if dlg.OK and result and result[0]:
-                config = update_config_with_layout(config_path, suggested)
-                print("✓ 已将建议布局参数写入配置文件")
+                layout = update_config_with_layout(LAYOUT_CONFIG_PATH, suggested)
+                print("✓ 已将建议布局参数写入独立布局文件")
             else:
-                print("已跳过布局优化")
+                print("已跳过布局优化，使用内置默认参数")
+                layout = suggested  # still use suggested for current run
         else:
-            print(f"配置文件已包含布局设置，使用现有配置")
-    else:
-        print("无法检测屏幕分辨率，使用配置文件中的默认布局")
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+            print("无法检测屏幕分辨率，使用默认布局参数")
+            layout = suggest_layout_for_resolution(1920, 1080)
 
+    # Compose combined config for downstream code
+    config['layout'] = layout
     return config
 
 
