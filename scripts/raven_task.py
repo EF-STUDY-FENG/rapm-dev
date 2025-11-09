@@ -694,7 +694,9 @@ class RavenTask:
         self._run_test_section('practice')
 
     def run_formal(self):
-        # Note: current_index is already set from practice or initialized at 0
+        # Reset navigation so formal starts from the first item
+        self.current_index = 0
+        self.nav_offset = 0
         self._run_test_section('formal')
 
     # ---------- Navigation Helpers (new) ----------
