@@ -128,7 +128,9 @@ class RavenTask:
         self.formal_answers = {}
         self.current_formal_index = 0
         self.in_practice = True
-        self.debug_mode = config.get('debug_mode', False)
+        # Enable debug mode if configured OR if participant_id is "0"
+        pid = str(self.participant_info.get('participant_id', '')).strip()
+        self.debug_mode = config.get('debug_mode', False) or (pid == '0')
         self.start_time = core.getTime()
         # Deadlines are set right before each section starts (after showing instructions)
         self.practice_deadline = None
@@ -209,32 +211,33 @@ class RavenTask:
         )
         # Set formal deadline (use debug time if in debug mode)
         if self.debug_mode:
-            # Debug: 10 min 5 sec = 605 seconds
-            self.formal_deadline = core.getTime() + 605
+            # Debug: 25 seconds (show timer at 20s, red at 10s)
+            self.formal_deadline = core.getTime() + 25
         else:
             self.formal_deadline = core.getTime() + self.formal['time_limit_minutes'] * 60
         self.run_formal()
 
     # ---------- Generic drawing helpers ----------
-    def draw_timer(self, deadline, show_only_last_10min=False):
+    def draw_timer(self, deadline, show_threshold=None, red_threshold=None):
         """Draw countdown timer.
 
         Args:
             deadline: The deadline timestamp
-            show_only_last_10min: If True, only show timer when less than 10 minutes remain
+            show_threshold: Only show timer when remaining time <= this (seconds). None = always show
+            red_threshold: Change color to red when remaining time <= this (seconds)
         """
         remaining = max(0, int(deadline - core.getTime()))
 
-        # If show_only_last_10min is True and more than 10 min remain, don't draw
-        if show_only_last_10min and remaining > 600:
+        # If show_threshold is set and more time remains, don't draw
+        if show_threshold is not None and remaining > show_threshold:
             return
 
         mins = remaining // 60
         secs = remaining % 60
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
 
-        # Change color to red if less than 5 minutes remain
-        color = 'red' if remaining <= 300 else 'white'
+        # Change color to red if threshold is set and remaining time is low
+        color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
 
         timerStim = visual.TextStim(self.win, text=timer_text, pos=(0, self.timer_y), height=0.04, color=color)
         timerStim.draw()
@@ -467,8 +470,13 @@ class RavenTask:
                 left_arrow.draw()
             if right_arrow:
                 right_arrow.draw()
-            # Timer below nav bar (only show in last 10 minutes for formal test)
-            self.draw_timer(self.formal_deadline, show_only_last_10min=True)
+            # Timer below nav bar
+            # Normal mode: show only in last 10 min (600s), red at 5 min (300s)
+            # Debug mode: show at 20s, red at 10s
+            if self.debug_mode:
+                self.draw_timer(self.formal_deadline, show_threshold=20, red_threshold=10)
+            else:
+                self.draw_timer(self.formal_deadline, show_threshold=600, red_threshold=300)
             # Question + options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
