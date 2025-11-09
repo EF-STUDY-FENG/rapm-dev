@@ -517,10 +517,20 @@ class RavenTask:
                     break
                 # advance to next unanswered
                 next_index = self.current_practice_index
-                for k in range(self.current_practice_index + 1, n_items):
-                    if items[k]['id'] not in self.practice_answers:
-                        next_index = k
-                        break
+
+                # If currently on the last item, check from the beginning for unanswered items
+                if self.current_practice_index == n_items - 1:
+                    for k in range(n_items):
+                        if items[k]['id'] not in self.practice_answers:
+                            next_index = k
+                            break
+                else:
+                    # Normal flow: look forward from current position
+                    for k in range(self.current_practice_index + 1, n_items):
+                        if items[k]['id'] not in self.practice_answers:
+                            next_index = k
+                            break
+
                 self.current_practice_index = next_index
                 self.practice_nav_offset = self._center_offset(self.current_practice_index, n_items)
                 continue
@@ -671,13 +681,24 @@ class RavenTask:
             if choice is not None:
                 self.formal_answers[item['id']] = choice + 1
                 if len(self.formal_answers) != n_items:
+                    # Find next unanswered item
                     next_index = self.current_formal_index
-                    for k in range(self.current_formal_index + 1, n_items):
-                        if items[k]['id'] not in self.formal_answers:
-                            next_index = k
-                            break
-                    if next_index == self.current_formal_index and self.current_formal_index < n_items - 1:
-                        next_index += 1
+
+                    # If currently on the last item, check from the beginning for unanswered items
+                    if self.current_formal_index == n_items - 1:
+                        for k in range(n_items):
+                            if items[k]['id'] not in self.formal_answers:
+                                next_index = k
+                                break
+                    else:
+                        # Normal flow: look forward from current position
+                        for k in range(self.current_formal_index + 1, n_items):
+                            if items[k]['id'] not in self.formal_answers:
+                                next_index = k
+                                break
+                        if next_index == self.current_formal_index and self.current_formal_index < n_items - 1:
+                            next_index += 1
+
                     self.current_formal_index = min(next_index, n_items - 1)
                     self.formal_nav_offset = self._center_offset(self.current_formal_index, n_items)
                 continue
