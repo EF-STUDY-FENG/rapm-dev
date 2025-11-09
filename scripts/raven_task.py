@@ -153,6 +153,8 @@ class RavenTask:
         self.option_img_max_h_base = float(layout_cfg.get('option_img_h', 0.28))
         # Option image fill ratio inside rect (0-1). Higher -> fills more, keep some border visible.
         self.option_img_fill = float(layout_cfg.get('option_img_fill', 0.92))
+        # Instruction line spacing multiplier
+        self.instruction_line_spacing = float(layout_cfg.get('instruction_line_spacing', 1.5))
         self.question_box_w_base = float(layout_cfg.get('question_box_w', 1.4))
         self.question_box_h_base = float(layout_cfg.get('question_box_h', 0.5))
         self.question_box_y = float(layout_cfg.get('question_box_y', 0.35))
@@ -215,9 +217,18 @@ class RavenTask:
         timerStim.draw()
 
     def show_instruction(self, text: str, button_text: str = "继续"):
-        """Display centered multi-line instruction with a clickable button below."""
-        # Text in center
-        instr = visual.TextStim(self.win, text=text, pos=(0, 0.15), height=0.055, color='white', alignText='center')
+        """Display centered multi-line instruction with a clickable button below.
+        PsychoPy TextStim lacks a lineSpacing kwarg in some versions; we render lines manually.
+        """
+        # Precompute lines layout
+        center_y = 0.15
+        line_h = 0.055
+        spacing = self.instruction_line_spacing
+        lines = (text or "").split("\n")
+        n = len(lines)
+        total = line_h * spacing * (n - 1) if n > 1 else 0.0
+        start_y = center_y + total / 2.0
+
         # Button setup
         btn_w, btn_h = 0.48, 0.12
         btn_pos = (0, -0.35)
@@ -225,8 +236,10 @@ class RavenTask:
         btn_label = visual.TextStim(self.win, text=button_text, pos=btn_pos, height=0.05, color='white')
         mouse = event.Mouse(win=self.win)
         while True:
-            # Clear-ish background by drawing nothing else, just the elements
-            instr.draw()
+            # Draw multi-line instruction centered
+            for i, line in enumerate(lines):
+                y = start_y - i * (line_h * spacing)
+                visual.TextStim(self.win, text=line, pos=(0, y), height=line_h, color='white').draw()
             btn_rect.draw()
             btn_label.draw()
             self.win.flip()
