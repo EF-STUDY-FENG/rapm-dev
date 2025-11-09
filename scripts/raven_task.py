@@ -201,6 +201,27 @@ class RavenTask:
         self.question_img_margin_w = float(layout_cfg.get('question_img_margin_w', 0.05))
         self.question_img_margin_h = float(layout_cfg.get('question_img_margin_h', 0.05))
 
+        # Timer thresholds (configurable)
+        self.practice_timer_show_threshold = layout_cfg.get('practice_timer_show_threshold', None)  # None = always show
+        self.practice_timer_red_threshold = float(layout_cfg.get('practice_timer_red_threshold', 300))
+        self.formal_timer_show_threshold = float(layout_cfg.get('formal_timer_show_threshold', 600))
+        self.formal_timer_red_threshold = float(layout_cfg.get('formal_timer_red_threshold', 300))
+        # Debug mode overrides
+        self.debug_timer_show_threshold = float(layout_cfg.get('debug_timer_show_threshold', 20))
+        self.debug_timer_red_threshold = float(layout_cfg.get('debug_timer_red_threshold', 10))
+
+        # Submit button layout (formal only)
+        self.submit_button_width = float(layout_cfg.get('submit_button_width', 0.5))
+        self.submit_button_height = float(layout_cfg.get('submit_button_height', 0.12))
+        self.submit_button_x = float(layout_cfg.get('submit_button_x', 0.0))
+        self.submit_button_y = float(layout_cfg.get('submit_button_y', -0.88))
+        self.submit_button_label_height = float(layout_cfg.get('submit_button_label_height', 0.055))
+        self.submit_button_line_width = int(layout_cfg.get('submit_button_line_width', 4))
+        self.submit_button_fill_normal = _col('submit_button_fill_normal', [0, 0.45, 0])
+        self.submit_button_fill_hover = _col('submit_button_fill_hover', [0, 0.6, 0])
+        self.submit_button_outline_normal = _col('submit_button_outline_normal', [0, 0.8, 0])
+        self.submit_button_outline_hover = _col('submit_button_outline_hover', 'yellow')
+
         # If config uses patterns + answers, generate items accordingly
         try:
             answers_file = config.get('answers_file')
@@ -476,6 +497,47 @@ class RavenTask:
         return None
 
     # ---------- Shared test flow logic ----------
+    def _get_section_config(self, section: str):
+        """Get configuration for a test section.
+
+        Args:
+            section: 'practice' or 'formal'
+
+        Returns:
+            dict with keys: config, answers, deadline, current_index_attr, nav_offset_attr,
+                           show_submit, auto_save_on_timeout, timer_show_threshold, timer_red_threshold
+        """
+        if section == 'practice':
+            show_t = self.practice_timer_show_threshold
+            red_t = self.practice_timer_red_threshold if not self.debug_mode else self.debug_timer_red_threshold
+            return {
+                'config': self.practice,
+                'answers': self.practice_answers,
+                'deadline': self.practice_deadline,
+                'current_index_attr': 'current_practice_index',
+                'nav_offset_attr': 'practice_nav_offset',
+                'show_submit': False,
+                'auto_save_on_timeout': False,
+                'timer_show_threshold': show_t,
+                'timer_red_threshold': red_t,
+            }
+        else:  # formal
+            if self.debug_mode:
+                show_t, red_t = self.debug_timer_show_threshold, self.debug_timer_red_threshold
+            else:
+                show_t, red_t = self.formal_timer_show_threshold, self.formal_timer_red_threshold
+            return {
+                'config': self.formal,
+                'answers': self.formal_answers,
+                'deadline': self.formal_deadline,
+                'current_index_attr': 'current_formal_index',
+                'nav_offset_attr': 'formal_nav_offset',
+                'show_submit': True,
+                'auto_save_on_timeout': True,
+                'timer_show_threshold': show_t,
+                'timer_red_threshold': red_t,
+            }
+
     def _find_next_unanswered(self, items, answers_dict, current_index):
         """Find the next unanswered item index.
 
@@ -511,32 +573,17 @@ class RavenTask:
         Args:
             section: 'practice' or 'formal'
         """
-        # Get section-specific data
-        if section == 'practice':
-            config = self.practice
-            answers = self.practice_answers
-            deadline = self.practice_deadline
-            show_submit = False  # Practice doesn't need submit button
-            auto_save_on_timeout = False  # Practice just ends
-        else:  # formal
-            config = self.formal
-            answers = self.formal_answers
-            deadline = self.formal_deadline
-            show_submit = True
-            auto_save_on_timeout = True
-
-        items = config['items']
+        # Get section configuration
+        cfg = self._get_section_config(section)
+        items = cfg['config']['items']
         n_items = len(items)
         if n_items == 0:
             return
 
-        # Get/set current index and nav offset
-        if section == 'practice':
-            current_index_attr = 'current_practice_index'
-            nav_offset_attr = 'practice_nav_offset'
-        else:
-            current_index_attr = 'current_formal_index'
-            nav_offset_attr = 'formal_nav_offset'
+        answers = cfg['answers']
+        deadline = cfg['deadline']
+        current_index_attr = cfg['current_index_attr']
+        nav_offset_attr = cfg['nav_offset_attr']
 
         # Main loop
         while core.getTime() < deadline:
@@ -552,25 +599,16 @@ class RavenTask:
             if l_rect: l_rect.draw(); l_txt.draw()
             if r_rect: r_rect.draw(); r_txt.draw()
 
-            # Draw header (timer + progress)
-            if section == 'practice':
-                self.draw_header(
-                    deadline=deadline,
-                    show_threshold=None,
-                    red_threshold=300 if not self.debug_mode else 10,
-                    answered_count=len(answers),
-                    total_count=n_items,
-                    show_timer=True,
-                    show_progress=True,
-                )
-            else:  # formal
-                if self.debug_mode:
-                    show_t, red_t = 20, 10
-                else:
-                    show_t, red_t = 600, 300
-                self.draw_header(deadline, show_threshold=show_t, red_threshold=red_t,
-                                 answered_count=len(answers), total_count=n_items,
-                                 show_timer=True, show_progress=True)
+            # Draw header (timer + progress) - unified logic
+            self.draw_header(
+                deadline=deadline,
+                show_threshold=cfg['timer_show_threshold'],
+                red_threshold=cfg['timer_red_threshold'],
+                answered_count=len(answers),
+                total_count=n_items,
+                show_timer=True,
+                show_progress=True,
+            )
 
             # Draw question & options
             self.draw_question(item['id'], item.get('question_image'))
@@ -581,19 +619,8 @@ class RavenTask:
 
             # Draw submit button (formal only, when all answered)
             submit_btn = None
-            if show_submit and len(answers) == n_items:
-                btn_w, btn_h, btn_pos = 0.5, 0.12, (0, -0.88)
-                mouse_local = event.Mouse(win=self.win)
-                temp_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos)
-                hovered = temp_rect.contains(mouse_local)
-                fill_col = (0, 0.45, 0) if not hovered else (0, 0.6, 0)
-                outline_col = (0, 0.8, 0) if not hovered else 'yellow'
-                submit_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
-                                         lineColor=outline_col, fillColor=fill_col, lineWidth=4)
-                submit_label = visual.TextStim(self.win, text='提交作答', pos=btn_pos,
-                                              height=0.055, color='white')
-                submit_rect.draw(); submit_label.draw()
-                submit_btn = submit_rect
+            if cfg['show_submit'] and len(answers) == n_items:
+                submit_btn = self._draw_submit_button()
 
             self.win.flip()
 
@@ -638,8 +665,33 @@ class RavenTask:
                 break
 
         # Handle timeout
-        if auto_save_on_timeout:
+        if cfg['auto_save_on_timeout']:
             self.save_and_exit()
+
+    def _draw_submit_button(self):
+        """Draw the submit button and return the rect for click detection.
+
+        Returns:
+            visual.Rect: The submit button rectangle for click detection
+        """
+        btn_pos = (self.submit_button_x, self.submit_button_y)
+        mouse_local = event.Mouse(win=self.win)
+        temp_rect = visual.Rect(self.win, width=self.submit_button_width,
+                               height=self.submit_button_height, pos=btn_pos)
+        hovered = temp_rect.contains(mouse_local)
+
+        fill_col = self.submit_button_fill_hover if hovered else self.submit_button_fill_normal
+        outline_col = self.submit_button_outline_hover if hovered else self.submit_button_outline_normal
+
+        submit_rect = visual.Rect(self.win, width=self.submit_button_width,
+                                 height=self.submit_button_height, pos=btn_pos,
+                                 lineColor=outline_col, fillColor=fill_col,
+                                 lineWidth=self.submit_button_line_width)
+        submit_label = visual.TextStim(self.win, text='提交作答', pos=btn_pos,
+                                      height=self.submit_button_label_height, color='white')
+        submit_rect.draw()
+        submit_label.draw()
+        return submit_rect
 
     # ---------- Practice and Formal wrappers ----------
     def run_practice(self):
