@@ -158,8 +158,8 @@ class RavenTask:
         self.practice_answers = {}
         self.formal_answers = {}
 
-        # Layout parameters (guaranteed complete by config_loader merge)
-        self.layout = dict(layout)
+        # Layout parameters (direct reference, guaranteed complete by config_loader)
+        self.layout = layout
 
         # Debug mode: layout flag OR participant_id == '0'
         pid = str(self.participant_info.get('participant_id', '')).strip()
@@ -193,22 +193,6 @@ class RavenTask:
                 self.formal['items'] = build_items_from_pattern(
                     f_pattern, f_count, answers, p_count, 'F'
                 )
-
-    def L(self, key: str) -> Any:
-        """Strict layout parameter accessor with informative errors.
-
-        Args:
-            key: Layout parameter name
-
-        Returns:
-            Layout value
-
-        Raises:
-            KeyError: If key missing from layout config
-        """
-        if key not in self.layout:
-            raise KeyError(f"layout.json 缺少必须的键: {key}")
-        return self.layout[key]
 
     def run(self) -> None:
         """Main entry point: create window → run sections → save → cleanup."""
@@ -384,18 +368,18 @@ class RavenTask:
             button_text: Label for continue button
         """
         lines = (text or "").split("\n")
-        center_y = self.L('instruction_center_y')
-        line_h = self.L('instruction_line_height')
-        spacing = self.L('instruction_line_spacing')
+        center_y = self.layout['instruction_center_y']
+        line_h = self.layout['instruction_line_height']
+        spacing = self.layout['instruction_line_spacing']
         show_start = core.getTime()
-        delay = 0.0 if self.debug_mode else self.L('instruction_button_delay')
+        delay = 0.0 if self.debug_mode else self.layout['instruction_button_delay']
 
         # Button layout
-        btn_w = self.L('button_width')
-        btn_h = self.L('button_height')
-        btn_pos = (self.L('button_x'), self.L('instruction_button_y'))
-        label_h = self.L('button_label_height')
-        line_w = self.L('button_line_width')
+        btn_w = self.layout['button_width']
+        btn_h = self.layout['button_height']
+        btn_pos = (self.layout['button_x'], self.layout['instruction_button_y'])
+        label_h = self.layout['button_label_height']
+        line_w = self.layout['button_line_width']
 
         mouse = event.Mouse(win=self.win)
         clickable = False
@@ -422,11 +406,11 @@ class RavenTask:
                     pos=btn_pos
                 )
                 hovered = temp_rect.contains(mouse)
-                fill_col = self.L('button_fill_hover') if hovered else self.L('button_fill_normal')
-                outline_col = self.L('button_outline_hover') if hovered else self.L('button_outline_normal')
+                fill_col = self.layout['button_fill_hover'] if hovered else self.layout['button_fill_normal']
+                outline_col = self.layout['button_outline_hover'] if hovered else self.layout['button_outline_normal']
             else:
-                fill_col = self.L('button_fill_disabled')
-                outline_col = self.L('button_outline_disabled')
+                fill_col = self.layout['button_fill_disabled']
+                outline_col = self.layout['button_outline_disabled']
 
             # Draw button
             btn_rect = visual.Rect(
@@ -446,7 +430,7 @@ class RavenTask:
                 pos=btn_pos,
                 height=label_h,
                 color='white',
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
             btn_rect.draw()
             btn_label.draw()
@@ -513,10 +497,10 @@ class RavenTask:
         timerStim = visual.TextStim(
             self.win,
             text=timer_text,
-            pos=(0, self.L('header_y')),
-            height=self.L('header_font_size'),
+            pos=(0, self.layout['header_y']),
+            height=self.layout['header_font_size'],
             color=color,
-            font=self.L('font_main')
+            font=self.layout['font_main']
         )
         timerStim.draw()
 
@@ -535,17 +519,17 @@ class RavenTask:
         color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
 
         # Position: right side, aligned with navigation arrow
-        y = self.L('header_y')
-        right_edge_x = self.L('nav_arrow_x_right') - (self.L('nav_arrow_w') / 2.0)
-        x = right_edge_x - self.L('progress_right_margin')
+        y = self.layout['header_y']
+        right_edge_x = self.layout['nav_arrow_x_right'] - (self.layout['nav_arrow_w'] / 2.0)
+        x = right_edge_x - self.layout['progress_right_margin']
 
         progStim = visual.TextStim(
             self.win,
             text=txt,
             pos=(x, y),
-            height=self.L('header_font_size'),
+            height=self.layout['header_font_size'],
             color=color,
-            font=self.L('font_main')
+            font=self.layout['font_main']
         )
         try:
             progStim.anchorHoriz = 'right'
@@ -592,7 +576,7 @@ class RavenTask:
                 pos=(x, y),
                 height=line_height,
                 color=color,
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
             try:
                 if bold_idx and i in bold_idx:
@@ -608,18 +592,18 @@ class RavenTask:
             item_id: Item identifier for fallback display
             image_path: Path to question image
         """
-        q_w = self.L('question_box_w') * self.L('scale_question')
-        q_h = self.L('question_box_h') * self.L('scale_question')
+        q_w = self.layout['question_box_w'] * self.layout['scale_question']
+        q_h = self.layout['question_box_h'] * self.layout['scale_question']
 
         if image_path and file_exists_nonempty(image_path):
             try:
-                max_w = q_w - self.L('question_img_margin_w')
-                max_h = q_h - self.L('question_img_margin_h')
+                max_w = q_w - self.layout['question_img_margin_w']
+                max_h = q_h - self.layout['question_img_margin_h']
                 disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
                 img = visual.ImageStim(
                     self.win,
                     image=resolve_path(image_path),
-                    pos=(0, self.L('question_box_y')),
+                    pos=(0, self.layout['question_box_y']),
                     size=(disp_w, disp_h)
                 )
                 img.draw()
@@ -627,18 +611,18 @@ class RavenTask:
                 txt = visual.TextStim(
                     self.win,
                     text=f"题目 {item_id}\n(图片加载失败)",
-                    pos=(0, self.L('question_box_y')),
+                    pos=(0, self.layout['question_box_y']),
                     height=0.06,
-                    font=self.L('font_main')
+                    font=self.layout['font_main']
                 )
                 txt.draw()
         else:
             txt = visual.TextStim(
                 self.win,
                 text=f"题目 {item_id}\n(图片占位)",
-                pos=(0, self.L('question_box_y')),
+                pos=(0, self.layout['question_box_y']),
                 height=0.06,
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
             txt.draw()
 
@@ -648,13 +632,13 @@ class RavenTask:
         Returns:
             List of visual.Rect objects for option grid
         """
-        cols = int(self.L('option_cols'))
-        rows = int(self.L('option_rows'))
-        dx = self.L('option_dx')
-        dy = self.L('option_dy')
-        rect_w = self.L('option_rect_w') * self.L('scale_option')
-        rect_h = self.L('option_rect_h') * self.L('scale_option')
-        center_y = self.L('option_grid_center_y')
+        cols = int(self.layout['option_cols'])
+        rows = int(self.layout['option_rows'])
+        dx = self.layout['option_dx']
+        dy = self.layout['option_dy']
+        rect_w = self.layout['option_rect_w'] * self.layout['scale_option']
+        rect_h = self.layout['option_rect_h'] * self.layout['scale_option']
+        center_y = self.layout['option_grid_center_y']
 
         rects: list[Any] = []
         total_cells = cols * rows
@@ -703,14 +687,14 @@ class RavenTask:
             if i < len(option_paths):
                 path = option_paths[i]
                 if path and file_exists_nonempty(path):
-                    max_w = self.L('option_img_w') * self.L('scale_option')
-                    max_h = self.L('option_img_h') * self.L('scale_option')
+                    max_w = self.layout['option_img_w'] * self.layout['scale_option']
+                    max_h = self.layout['option_img_h'] * self.layout['scale_option']
                     disp_w, disp_h = fitted_size_keep_aspect(path, max_w, max_h)
                     img = visual.ImageStim(
                         self.win,
                         image=resolve_path(path),
                         pos=rect.pos,
-                        size=(disp_w * self.L('option_img_fill'), disp_h * self.L('option_img_fill'))
+                        size=(disp_w * self.layout['option_img_fill'], disp_h * self.layout['option_img_fill'])
                     )
                     img.draw()
                 else:
@@ -720,7 +704,7 @@ class RavenTask:
                         pos=rect.pos,
                         height=0.05,
                         color='gray',
-                        font=self.L('font_main')
+                        font=self.layout['font_main']
                     )
                     placeholder.draw()
 
@@ -730,34 +714,34 @@ class RavenTask:
         Returns:
             visual.Rect for click detection
         """
-        btn_pos = (self.L('button_x'), self.L('submit_button_y'))
+        btn_pos = (self.layout['button_x'], self.layout['submit_button_y'])
         mouse_local = event.Mouse(win=self.win)
         temp_rect = visual.Rect(
             self.win,
-            width=self.L('button_width'),
-            height=self.L('button_height'),
+            width=self.layout['button_width'],
+            height=self.layout['button_height'],
             pos=btn_pos
         )
         hovered = temp_rect.contains(mouse_local)
-        fill_col = self.L('button_fill_hover') if hovered else self.L('button_fill_normal')
-        outline_col = self.L('button_outline_hover') if hovered else self.L('button_outline_normal')
+        fill_col = self.layout['button_fill_hover'] if hovered else self.layout['button_fill_normal']
+        outline_col = self.layout['button_outline_hover'] if hovered else self.layout['button_outline_normal']
 
         submit_rect = visual.Rect(
             self.win,
-            width=self.L('button_width'),
-            height=self.L('button_height'),
+            width=self.layout['button_width'],
+            height=self.layout['button_height'],
             pos=btn_pos,
             lineColor=outline_col,
             fillColor=fill_col,
-            lineWidth=self.L('button_line_width')
+            lineWidth=self.layout['button_line_width']
         )
         submit_label = visual.TextStim(
             self.win,
             text='提交作答',
             pos=btn_pos,
-            height=self.L('button_label_height'),
+            height=self.layout['button_label_height'],
             color='white',
-            font=self.L('font_main')
+            font=self.layout['font_main']
         )
         submit_rect.draw()
         submit_label.draw()
@@ -818,11 +802,11 @@ class RavenTask:
             return stims, None, None, None, None
 
         count = len(visible)
-        nav_y = self.L('nav_y')
-        x_left_edge = self.L('nav_arrow_x_left')
-        x_right_edge = self.L('nav_arrow_x_right')
-        arrow_w = self.L('nav_arrow_w')
-        gap = self.L('nav_gap')
+        nav_y = self.layout['nav_y']
+        x_left_edge = self.layout['nav_arrow_x_left']
+        x_right_edge = self.layout['nav_arrow_x_right']
+        arrow_w = self.layout['nav_arrow_w']
+        gap = self.layout['nav_gap']
 
         # Calculate button positions
         x_left = x_left_edge + arrow_w + gap
@@ -830,9 +814,9 @@ class RavenTask:
         span = x_right - x_left
         xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [(x_left + x_right) / 2.0]
 
-        item_w = self.L('nav_item_w')
-        item_h = self.L('nav_item_h')
-        label_h = self.L('nav_label_height')
+        item_w = self.layout['nav_item_w']
+        item_h = self.layout['nav_item_h']
+        label_h = self.layout['nav_label_height']
 
         # Build item buttons
         for i, gi in enumerate(visible):
@@ -857,14 +841,14 @@ class RavenTask:
                 height=label_h,
                 color='black' if answered else 'white',
                 bold=answered,
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
             stims.append((gi, rect, label))
 
         # Build page arrows
         left_rect = left_txt = right_rect = right_txt = None
         arrow_h = item_h
-        arrow_label_h = self.L('nav_arrow_label_height')
+        arrow_label_h = self.layout['nav_arrow_label_height']
 
         if start > 0:
             left_rect = visual.Rect(
@@ -882,7 +866,7 @@ class RavenTask:
                 pos=(x_left_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
 
         if end < n:
@@ -901,7 +885,7 @@ class RavenTask:
                 pos=(x_right_edge, nav_y),
                 height=arrow_label_h,
                 bold=True,
-                font=self.L('font_main')
+                font=self.layout['font_main']
             )
 
         return stims, left_rect, left_txt, right_rect, right_txt
@@ -1001,11 +985,11 @@ class RavenTask:
 
         # Formal section
         if self.debug_mode:
-            show_t = self.L('debug_timer_show_threshold')
-            red_t = self.L('debug_timer_red_threshold')
+            show_t = self.layout['debug_timer_show_threshold']
+            red_t = self.layout['debug_timer_red_threshold']
         else:
-            show_t = self.L('formal_timer_show_threshold')
-            red_t = self.L('timer_red_threshold')
+            show_t = self.layout['formal_timer_show_threshold']
+            red_t = self.layout['timer_red_threshold']
 
         return {
             'config': self.formal,
