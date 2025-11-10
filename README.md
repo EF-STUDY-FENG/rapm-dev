@@ -20,7 +20,7 @@
 raven-dev/
 ├── stimuli/          # Stimulus files (images, videos, audio, etc.)
 ├── data/             # Output data files
-├── scripts/          # Python scripts for experiments
+├── src/              # Source code for experiments
 ├── configs/          # Configuration files
 ├── results/          # Analysis results
 └── docs/             # Documentation
@@ -103,7 +103,7 @@ conda activate psychopy-dev
 运行实验（练习集 + 正式集）：
 
 ```bash
-python scripts/run_raven.py
+python src/run_raven.py
 ```
 
 ### 显示模式

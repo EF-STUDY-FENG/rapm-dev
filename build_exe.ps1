@@ -38,7 +38,7 @@ $root = $PSScriptRoot
 Push-Location $root
 
 # Paths
-$entry = Join-Path $root "scripts/run_raven.py"
+$entry = Join-Path $root "src/run_raven.py"
 $dist = Join-Path $root "dist"
 $build = Join-Path $root "build"
 

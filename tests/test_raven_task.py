@@ -7,8 +7,8 @@ import os
 import tempfile
 import shutil
 
-# Add scripts to path and mock psychopy before importing raven_task
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+# Add src to path and mock psychopy before importing raven_task
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Mock psychopy modules to avoid import errors in testing
 class MockModule:
