@@ -119,7 +119,7 @@ class RavenTask:
         else:
             self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
         # Run practice section
-        self.practice_last_times = self.run_section('practice', start_time=self.practice_start_time)
+        self.practice_last_times = self.run_section('practice')
         # Practice finished
         # Show formal instructions
         self.show_instruction(
@@ -138,7 +138,7 @@ class RavenTask:
         else:
             self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
         # Run formal section
-        self.formal_last_times = self.run_section('formal', start_time=self.formal_start_time)
+        self.formal_last_times = self.run_section('formal')
         # Save results after both sections
         self.save_and_exit()
 
@@ -461,12 +461,11 @@ class RavenTask:
 
         return next_index
 
-    def run_section(self, section: str, start_time=None):
+    def run_section(self, section: str):
         """Run a test section ('practice' or 'formal') with unified flow.
 
         Args:
             section: 'practice' or 'formal'
-            start_time: section start time (float)
         """
         # Get section configuration
         cfg = self._get_section_config(section)
@@ -482,8 +481,6 @@ class RavenTask:
         nav_offset = 0
 
         last_times = {}
-        if start_time is None:
-            start_time = core.getTime()
 
         # Main loop
         while core.getTime() < deadline:
@@ -553,7 +550,7 @@ class RavenTask:
 
             # Handle navigation click
             nav_action, current_index, nav_offset = self._handle_navigation_click(
-                nav_items, l_rect, r_rect, section, items, current_index, nav_offset)
+                nav_items, l_rect, r_rect, items, current_index, nav_offset)
             if nav_action == 'jump':
                 # center only when direct jump
                 nav_offset = self._center_offset(current_index, n_items)
@@ -713,7 +710,7 @@ class RavenTask:
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
-    def _handle_navigation_click(self, nav_items, left_rect, right_rect, section: str, items, current_index, nav_offset):
+    def _handle_navigation_click(self, nav_items, left_rect, right_rect, items, current_index, nav_offset):
         """Handle navigation clicks.
 
         Returns:
