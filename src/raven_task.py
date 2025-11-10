@@ -19,6 +19,8 @@ import os
 import csv
 from datetime import datetime
 from psychopy import visual, event, core
+from ui.renderer import Renderer
+from ui.navigator import Navigator
 from config_loader import get_output_dir
 from path_utils import (
     resolve_path,
@@ -222,6 +224,9 @@ class RavenTask:
 
         try:
             # Run practice (instruction shown inside _run_section)
+            # Initialize UI helpers tied to the created window
+            self.renderer = Renderer(self.win, self.layout)
+            self.navigator = Navigator(self.win, self.layout, max_visible_nav=self.max_visible_nav)
             self._run_section('practice')
 
             # Run formal (instruction shown inside _run_section)
@@ -262,7 +267,7 @@ class RavenTask:
         instruction_text = conf.get('instruction', '')
         button_text = conf.get('button_text', '继续')
         if instruction_text:
-            self._show_instruction(instruction_text, button_text=button_text)
+            self.renderer.show_instruction(instruction_text, button_text=button_text, debug_mode=self.debug_mode)
 
         # Initialize timing
         start_time = core.getTime()
@@ -295,7 +300,7 @@ class RavenTask:
             item = items[current_index]
 
             # Draw navigation bar (buttons + arrows)
-            nav_items, l_rect, l_txt, r_rect, r_txt = self._build_navigation(
+            nav_items, l_rect, l_txt, r_rect, r_txt = self.navigator.build_navigation(
                 items, answers, current_index, nav_offset
             )
             for _, rect, label in nav_items:
@@ -309,7 +314,7 @@ class RavenTask:
                 r_txt.draw()
 
             # Draw header (timer + progress)
-            self._draw_header(
+            self.renderer.draw_header(
                 deadline=timing.deadline,
                 show_threshold=show_threshold,
                 red_threshold=red_threshold,
@@ -320,10 +325,10 @@ class RavenTask:
             )
 
             # Draw question and options
-            self._draw_question(item['id'], item.get('question_image'))
-            rects = self._create_option_rects()
+            self.renderer.draw_question(item['id'], item.get('question_image'))
+            rects = self.renderer.create_option_rects()
             prev_choice = answers.get(item['id'])
-            self._draw_options(
+            self.renderer.draw_options(
                 item.get('options', []),
                 rects,
                 selected_index=(prev_choice - 1) if prev_choice else None
@@ -332,7 +337,7 @@ class RavenTask:
             # Draw submit button (formal only, when all answered)
             submit_btn = None
             if show_submit and len(answers) == n_items:
-                submit_btn = self._draw_submit_button()
+                submit_btn = self.renderer.draw_submit_button()
 
             self.win.flip()
 
@@ -345,7 +350,7 @@ class RavenTask:
                     return  # Exit section
 
             # Handle option click
-            choice = self._detect_click_on_rects(rects)
+            choice = self.renderer.detect_click_on_rects(rects)
             if choice is not None:
                 answers[item['id']] = choice + 1
                 timing.last_times[item['id']] = core.getTime()
@@ -357,17 +362,17 @@ class RavenTask:
                     # Formal: stay in loop to show submit button
                 else:
                     # Auto-advance to next unanswered
-                    next_index = self._find_next_unanswered(items, answers, current_index)
+                    next_index = self.navigator.find_next_unanswered(items, answers, current_index)
                     current_index = next_index
-                    nav_offset = self._center_offset(next_index, n_items)
+                    nav_offset = self.navigator.center_offset(next_index, n_items)
                 continue
 
             # Handle navigation click
-            nav_action, current_index, nav_offset = self._handle_navigation_click(
+            nav_action, current_index, nav_offset = self.navigator.handle_click(
                 nav_items, l_rect, r_rect, items, current_index, nav_offset
             )
             if nav_action == 'jump':
-                nav_offset = self._center_offset(current_index, n_items)
+                nav_offset = self.navigator.center_offset(current_index, n_items)
                 continue
             if nav_action == 'page':
                 continue
@@ -376,651 +381,6 @@ class RavenTask:
             if core.getTime() >= timing.deadline:
                 break
 
-    # -------------------------------------------------------------------------
-    # UI DRAWING
-    # -------------------------------------------------------------------------
-
-    def _show_instruction(self, text: str, button_text: str = "继续") -> None:
-        """Display instruction screen with countdown button.
-
-        In normal mode, button is disabled for instruction_button_delay seconds.
-        In debug mode, button is immediately clickable.
-
-        Args:
-            text: Multi-line instruction text (newline-separated)
-            button_text: Label for continue button
-        """
-        lines = (text or "").split("\n")
-        center_y = self.layout['instruction_center_y']
-        line_h = self.layout['instruction_line_height']
-        spacing = self.layout['instruction_line_spacing']
-        show_start = core.getTime()
-        delay = 0.0 if self.debug_mode else self.layout['instruction_button_delay']
-
-        # Button layout
-        btn_w = self.layout['button_width']
-        btn_h = self.layout['button_height']
-        btn_pos = (self.layout['button_x'], self.layout['instruction_button_y'])
-        label_h = self.layout['button_label_height']
-        line_w = self.layout['button_line_width']
-
-        mouse = event.Mouse(win=self.win)
-        clickable = False
-
-        while True:
-            elapsed = core.getTime() - show_start
-            if not clickable and elapsed >= delay:
-                clickable = True
-
-            # Draw instruction text
-            self._draw_multiline(
-                lines,
-                center_y=center_y,
-                line_height=line_h,
-                spacing=spacing
-            )
-
-            # Button colors based on state
-            if clickable:
-                temp_rect = visual.Rect(
-                    self.win,
-                    width=btn_w,
-                    height=btn_h,
-                    pos=btn_pos
-                )
-                hovered = temp_rect.contains(mouse)
-                fill_col = self.layout['button_fill_hover'] if hovered else self.layout['button_fill_normal']
-                outline_col = self.layout['button_outline_hover'] if hovered else self.layout['button_outline_normal']
-            else:
-                fill_col = self.layout['button_fill_disabled']
-                outline_col = self.layout['button_outline_disabled']
-
-            # Draw button
-            btn_rect = visual.Rect(
-                self.win,
-                width=btn_w,
-                height=btn_h,
-                pos=btn_pos,
-                lineColor=outline_col,
-                fillColor=fill_col,
-                lineWidth=line_w
-            )
-            remaining = int(max(0, delay - elapsed))
-            label_text = button_text if clickable else f"{button_text} ({remaining}s)"
-            btn_label = visual.TextStim(
-                self.win,
-                text=label_text,
-                pos=btn_pos,
-                height=label_h,
-                color='white',
-                font=self.layout['font_main']
-            )
-            btn_rect.draw()
-            btn_label.draw()
-            self.win.flip()
-
-            # Check for click
-            if clickable and any(mouse.getPressed()) and btn_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                break
-
-    def _draw_header(
-        self,
-        deadline: Optional[float],
-        show_threshold: Optional[int],
-        red_threshold: Optional[int],
-        answered_count: int,
-        total_count: int,
-        show_timer: bool = True,
-        show_progress: bool = True,
-    ) -> None:
-        """Draw header with timer (left) and progress (right).
-
-        Args:
-            deadline: Absolute deadline timestamp
-            show_threshold: Timer visibility threshold (seconds remaining)
-            red_threshold: Timer red color threshold (seconds remaining)
-            answered_count: Number of answered items
-            total_count: Total number of items
-            show_timer: Whether to show timer
-            show_progress: Whether to show progress
-        """
-        if show_timer and deadline is not None:
-            self._draw_timer(deadline, show_threshold, red_threshold)
-        if show_progress and total_count is not None:
-            self._draw_progress(answered_count, total_count)
-
-    def _draw_timer(
-        self,
-        deadline: Optional[float],
-        show_threshold: Optional[int] = None,
-        red_threshold: Optional[int] = None,
-    ) -> None:
-        """Draw countdown timer at header position.
-
-        Args:
-            deadline: Absolute deadline timestamp
-            show_threshold: Only show if remaining <= this (None = always show)
-            red_threshold: Turn red if remaining <= this
-        """
-        remaining = max(0, int(deadline - core.getTime()))
-
-        # Conditional visibility
-        if show_threshold is not None and remaining > show_threshold:
-            return
-
-        mins = remaining // 60
-        secs = remaining % 60
-        timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
-
-        # Color based on urgency
-        color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
-
-        timerStim = visual.TextStim(
-            self.win,
-            text=timer_text,
-            pos=(0, self.layout['header_y']),
-            height=self.layout['header_font_size'],
-            color=color,
-            font=self.layout['font_main']
-        )
-        timerStim.draw()
-
-    def _draw_progress(self, answered_count: int, total_count: int) -> None:
-        """Draw progress indicator (e.g., '已答 12 / 总数 36').
-
-        Shows in green when all answered, white otherwise.
-        Right-aligned at header level.
-
-        Args:
-            answered_count: Number of answered items
-            total_count: Total items
-        """
-        answered_count = max(0, min(answered_count, total_count))
-        txt = f"已答 {answered_count} / 总数 {total_count}"
-        color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
-
-        # Position: right side, aligned with navigation arrow
-        y = self.layout['header_y']
-        right_edge_x = self.layout['nav_arrow_x_right'] - (self.layout['nav_arrow_w'] / 2.0)
-        x = right_edge_x - self.layout['progress_right_margin']
-
-        progStim = visual.TextStim(
-            self.win,
-            text=txt,
-            pos=(x, y),
-            height=self.layout['header_font_size'],
-            color=color,
-            font=self.layout['font_main']
-        )
-        try:
-            progStim.anchorHoriz = 'right'
-        except Exception:
-            pass
-        progStim.draw()
-
-    def _draw_multiline(
-        self,
-        lines: Sequence[str],
-        center_y: float,
-        line_height: float,
-        spacing: float = 1.5,
-        colors: Optional[list[str]] = None,
-        bold_idx: Optional[set[int]] = None,
-        x: float = 0.0,
-    ) -> None:
-        """Draw multiple lines with custom spacing, centered vertically.
-
-        Args:
-            lines: Text lines to draw
-            center_y: Vertical center in norm units
-            line_height: Font height for each line
-            spacing: Line spacing multiplier (1.5 = 1.5x line height)
-            colors: Optional per-line colors (fallback: 'white')
-            bold_idx: Optional set of line indices to make bold
-            x: Horizontal position (0.0 = center)
-        """
-        lines = list(lines or [])
-        n = len(lines)
-        if n == 0:
-            return
-
-        # Calculate vertical span
-        total = line_height * spacing * (n - 1) if n > 1 else 0.0
-        start_y = center_y + total / 2.0
-
-        for i, text in enumerate(lines):
-            y = start_y - i * (line_height * spacing)
-            color = (colors[i] if (colors and i < len(colors)) else 'white')
-            stim = visual.TextStim(
-                self.win,
-                text=text or '',
-                pos=(x, y),
-                height=line_height,
-                color=color,
-                font=self.layout['font_main']
-            )
-            try:
-                if bold_idx and i in bold_idx:
-                    stim.bold = True
-            except Exception:
-                pass
-            stim.draw()
-
-    def _draw_question(self, item_id: str, image_path: Optional[str]) -> None:
-        """Draw question image at top center.
-
-        Args:
-            item_id: Item identifier for fallback display
-            image_path: Path to question image
-        """
-        q_w = self.layout['question_box_w'] * self.layout['scale_question']
-        q_h = self.layout['question_box_h'] * self.layout['scale_question']
-
-        if image_path and file_exists_nonempty(image_path):
-            try:
-                max_w = q_w - self.layout['question_img_margin_w']
-                max_h = q_h - self.layout['question_img_margin_h']
-                disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
-                img = visual.ImageStim(
-                    self.win,
-                    image=resolve_path(image_path),
-                    pos=(0, self.layout['question_box_y']),
-                    size=(disp_w, disp_h)
-                )
-                img.draw()
-            except Exception:
-                txt = visual.TextStim(
-                    self.win,
-                    text=f"题目 {item_id}\n(图片加载失败)",
-                    pos=(0, self.layout['question_box_y']),
-                    height=0.06,
-                    font=self.layout['font_main']
-                )
-                txt.draw()
-        else:
-            txt = visual.TextStim(
-                self.win,
-                text=f"题目 {item_id}\n(图片占位)",
-                pos=(0, self.layout['question_box_y']),
-                height=0.06,
-                font=self.layout['font_main']
-            )
-            txt.draw()
-
-    def _create_option_rects(self) -> list[Any]:
-        """Create option rectangles in a grid layout.
-
-        Returns:
-            List of visual.Rect objects for option grid
-        """
-        cols = int(self.layout['option_cols'])
-        rows = int(self.layout['option_rows'])
-        dx = self.layout['option_dx']
-        dy = self.layout['option_dy']
-        rect_w = self.layout['option_rect_w'] * self.layout['scale_option']
-        rect_h = self.layout['option_rect_h'] * self.layout['scale_option']
-        center_y = self.layout['option_grid_center_y']
-
-        rects: list[Any] = []
-        total_cells = cols * rows
-        for r in range(rows):
-            for c in range(cols):
-                x = (c - (cols - 1) / 2) * dx
-                y = center_y - (r - (rows - 1) / 2) * dy
-                rect = visual.Rect(
-                    self.win,
-                    width=rect_w,
-                    height=rect_h,
-                    pos=(x, y),
-                    lineColor='white',
-                    lineWidth=2,
-                    fillColor=None
-                )
-                rects.append(rect)
-        return rects[:total_cells]
-
-    def _draw_options(
-        self,
-        option_paths: list[str],
-        rects: list[Any],
-        selected_index: Optional[int] = None,
-    ) -> None:
-        """Draw option rectangles and images.
-
-        Args:
-            option_paths: List of image paths
-            rects: Rectangles from create_option_rects()
-            selected_index: Index of selected option (0-based, None if unselected)
-        """
-        for i, rect in enumerate(rects):
-            # Highlight selected option
-            if selected_index is not None and i == selected_index:
-                rect.lineColor = 'yellow'
-                rect.lineWidth = 4
-                rect.fillColor = (0, 0.45, 0)
-            else:
-                rect.lineColor = 'white'
-                rect.lineWidth = 2
-                rect.fillColor = None
-            rect.draw()
-
-            # Draw image or placeholder
-            if i < len(option_paths):
-                path = option_paths[i]
-                if path and file_exists_nonempty(path):
-                    max_w = self.layout['option_img_w'] * self.layout['scale_option']
-                    max_h = self.layout['option_img_h'] * self.layout['scale_option']
-                    disp_w, disp_h = fitted_size_keep_aspect(path, max_w, max_h)
-                    img = visual.ImageStim(
-                        self.win,
-                        image=resolve_path(path),
-                        pos=rect.pos,
-                        size=(disp_w * self.layout['option_img_fill'], disp_h * self.layout['option_img_fill'])
-                    )
-                    img.draw()
-                else:
-                    placeholder = visual.TextStim(
-                        self.win,
-                        text=str(i+1),
-                        pos=rect.pos,
-                        height=0.05,
-                        color='gray',
-                        font=self.layout['font_main']
-                    )
-                    placeholder.draw()
-
-    def _draw_submit_button(self) -> Any:
-        """Draw submit button for formal section.
-
-        Returns:
-            visual.Rect for click detection
-        """
-        btn_pos = (self.layout['button_x'], self.layout['submit_button_y'])
-        mouse_local = event.Mouse(win=self.win)
-        temp_rect = visual.Rect(
-            self.win,
-            width=self.layout['button_width'],
-            height=self.layout['button_height'],
-            pos=btn_pos
-        )
-        hovered = temp_rect.contains(mouse_local)
-        fill_col = self.layout['button_fill_hover'] if hovered else self.layout['button_fill_normal']
-        outline_col = self.layout['button_outline_hover'] if hovered else self.layout['button_outline_normal']
-
-        submit_rect = visual.Rect(
-            self.win,
-            width=self.layout['button_width'],
-            height=self.layout['button_height'],
-            pos=btn_pos,
-            lineColor=outline_col,
-            fillColor=fill_col,
-            lineWidth=self.layout['button_line_width']
-        )
-        submit_label = visual.TextStim(
-            self.win,
-            text='提交作答',
-            pos=btn_pos,
-            height=self.layout['button_label_height'],
-            color='white',
-            font=self.layout['font_main']
-        )
-        submit_rect.draw()
-        submit_label.draw()
-        return submit_rect
-
-    # -------------------------------------------------------------------------
-    # EVENT HANDLING
-    # -------------------------------------------------------------------------
-
-    def _detect_click_on_rects(self, rects: list[Any]) -> Optional[int]:
-        """Detect mouse click on any rectangle.
-
-        Args:
-            rects: List of clickable rectangles
-
-        Returns:
-            Zero-based index of clicked rect, or None
-        """
-        mouse = event.Mouse(win=self.win)
-        if not any(mouse.getPressed()):
-            return None
-        for i, rect in enumerate(rects):
-            if rect.contains(mouse):
-                # Wait for release to prevent repeat clicks
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                return i
-        return None
-
-    # -------------------------------------------------------------------------
-    # NAVIGATION
-    # -------------------------------------------------------------------------
-
-    def _build_navigation(
-        self,
-        items: list[dict[str, Any]],
-        answers_dict: dict[str, int],
-        current_index: int,
-        offset: int,
-    ) -> tuple[list[tuple[int, Any, Any]], Any, Any, Any, Any]:
-        """Build navigation bar with item buttons and page arrows.
-
-        Args:
-            items: All items in section
-            answers_dict: Map of answered item IDs
-            current_index: Currently displayed item
-            offset: Scroll offset for pagination
-
-        Returns:
-            Tuple of (nav_items, left_rect, left_txt, right_rect, right_txt)
-        """
-        n = len(items)
-        start = offset
-        end = min(n, start + self.max_visible_nav)
-        visible = list(range(start, end))
-        stims = []
-        if not visible:
-            return stims, None, None, None, None
-
-        count = len(visible)
-        nav_y = self.layout['nav_y']
-        x_left_edge = self.layout['nav_arrow_x_left']
-        x_right_edge = self.layout['nav_arrow_x_right']
-        arrow_w = self.layout['nav_arrow_w']
-        gap = self.layout['nav_gap']
-
-        # Calculate button positions
-        x_left = x_left_edge + arrow_w + gap
-        x_right = x_right_edge - arrow_w - gap
-        span = x_right - x_left
-        xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [(x_left + x_right) / 2.0]
-
-        item_w = self.layout['nav_item_w']
-        item_h = self.layout['nav_item_h']
-        label_h = self.layout['nav_label_height']
-
-        # Build item buttons
-        for i, gi in enumerate(visible):
-            answered = items[gi]['id'] in answers_dict
-            rect = visual.Rect(
-                self.win,
-                width=item_w,
-                height=item_h,
-                pos=(xs[i], nav_y),
-                lineColor='yellow' if gi == current_index else 'white',
-                lineWidth=3,
-                fillColor=(0, 0.45, 0) if answered else None,
-            )
-            # Extract numeric label from item ID
-            _raw_id = items[gi]['id'] or ''
-            _digits = ''.join([ch for ch in _raw_id if ch.isdigit()])
-            _label_txt = str(int(_digits)) if _digits else _raw_id
-            label = visual.TextStim(
-                self.win,
-                text=_label_txt,
-                pos=(xs[i], nav_y),
-                height=label_h,
-                color='black' if answered else 'white',
-                bold=answered,
-                font=self.layout['font_main']
-            )
-            stims.append((gi, rect, label))
-
-        # Build page arrows
-        left_rect = left_txt = right_rect = right_txt = None
-        arrow_h = item_h
-        arrow_label_h = self.layout['nav_arrow_label_height']
-
-        if start > 0:
-            left_rect = visual.Rect(
-                self.win,
-                width=arrow_w,
-                height=arrow_h,
-                pos=(x_left_edge, nav_y),
-                lineColor='white',
-                lineWidth=3,
-                fillColor=(0.15, 0.15, 0.15),
-            )
-            left_txt = visual.TextStim(
-                self.win,
-                text='◄',
-                pos=(x_left_edge, nav_y),
-                height=arrow_label_h,
-                bold=True,
-                font=self.layout['font_main']
-            )
-
-        if end < n:
-            right_rect = visual.Rect(
-                self.win,
-                width=arrow_w,
-                height=arrow_h,
-                pos=(x_right_edge, nav_y),
-                lineColor='white',
-                lineWidth=3,
-                fillColor=(0.15, 0.15, 0.15),
-            )
-            right_txt = visual.TextStim(
-                self.win,
-                text='►',
-                pos=(x_right_edge, nav_y),
-                height=arrow_label_h,
-                bold=True,
-                font=self.layout['font_main']
-            )
-
-        return stims, left_rect, left_txt, right_rect, right_txt
-
-    def _handle_navigation_click(
-        self,
-        nav_items: list[tuple[int, Any, Any]],
-        left_rect: Any,
-        right_rect: Any,
-        items: list[dict[str, Any]],
-        current_index: int,
-        nav_offset: int,
-    ) -> tuple[Optional[str], int, int]:
-        """Handle clicks on navigation elements.
-
-        Args:
-            nav_items: List of (index, rect, label) tuples
-            left_rect: Left arrow rectangle
-            right_rect: Right arrow rectangle
-            items: All items
-            current_index: Current item index
-            nav_offset: Current pagination offset
-
-        Returns:
-            (action, current_index, nav_offset) where action is 'jump'|'page'|None
-        """
-        mouse = event.Mouse(win=self.win)
-        if any(mouse.getPressed()):
-            # Check left arrow
-            if left_rect and left_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                nav_offset = max(0, nav_offset - self.max_visible_nav)
-                return 'page', current_index, nav_offset
-
-            # Check right arrow
-            if right_rect and right_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                max_off = max(0, len(items) - self.max_visible_nav)
-                nav_offset = min(max_off, nav_offset + self.max_visible_nav)
-                return 'page', current_index, nav_offset
-
-            # Check item buttons
-            for gi, rect, label in nav_items:
-                if rect.contains(mouse) or label.contains(mouse):
-                    while any(mouse.getPressed()):
-                        core.wait(0.01)
-                    current_index = gi
-                    return 'jump', current_index, nav_offset
-
-        return None, current_index, nav_offset
-
-    def _center_offset(self, index: int, total: int) -> int:
-        """Calculate pagination offset to center given index.
-
-        Args:
-            index: Item index to center
-            total: Total number of items
-
-        Returns:
-            Pagination offset
-        """
-        if total <= self.max_visible_nav:
-            return 0
-        half = self.max_visible_nav // 2
-        offset = index - half
-        if offset < 0:
-            offset = 0
-        max_off = total - self.max_visible_nav
-        if offset > max_off:
-            offset = max_off
-        return offset
-
-    def _find_next_unanswered(
-        self,
-        items: list[dict[str, Any]],
-        answers_dict: dict[str, int],
-        current_index: int,
-    ) -> int:
-        """Find next unanswered item for auto-advance.
-
-        Searches forward from current position. If on last item, wraps to start.
-
-        Args:
-            items: All items
-            answers_dict: Map of answered item IDs
-            current_index: Current item index
-
-        Returns:
-            Index of next unanswered item (or current if none found)
-        """
-        n_items = len(items)
-        next_index = current_index
-
-        # Wrap-around check if on last item
-        if current_index == n_items - 1:
-            for k in range(n_items):
-                if items[k]['id'] not in answers_dict:
-                    next_index = k
-                    break
-        else:
-            # Normal forward search
-            for k in range(current_index + 1, n_items):
-                if items[k]['id'] not in answers_dict:
-                    next_index = k
-                    break
-            # Fallback: advance by one if nothing found
-            if next_index == current_index and current_index < n_items - 1:
-                next_index += 1
-
-        return next_index
 
     # -------------------------------------------------------------------------
     # DATA PERSISTENCE
@@ -1114,7 +474,7 @@ class RavenTask:
         lines = ['作答完成！', '感谢您的作答！']
         colors = ['green', 'white']
         for _ in range(300):  # ~5 seconds
-            self._draw_multiline(
+            self.renderer.draw_multiline(
                 lines,
                 center_y=0.05,
                 line_height=0.065,
