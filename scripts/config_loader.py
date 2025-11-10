@@ -10,26 +10,48 @@ import os
 import sys
 
 
-def _get_base_dir() -> str:
-    """Return base directory for read-only resources (configs/stimuli)."""
+def get_base_dir() -> str:
+    """Return base directory for read-only resources (configs/stimuli).
+
+    Note: In PyInstaller onefile, resources are unpacked to a temporary
+    extraction directory (sys._MEIPASS). That location is read-only and may be
+    deleted after exit, so DO NOT write output files there.
+    """
     try:
+        # PyInstaller onefile provides a temporary extraction dir
         meipass = getattr(sys, '_MEIPASS', None)
         if meipass and os.path.isdir(meipass):
             return meipass
+        # Onedir: use the executable directory so bundled folders like 'configs/' work
         if getattr(sys, 'frozen', False):
             return os.path.dirname(sys.executable)
     except Exception:
         pass
+    # Normal dev mode: project root (scripts/..)
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-BASE_DIR = _get_base_dir()
-SEQUENCE_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')
-LAYOUT_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
+def get_output_dir() -> str:
+    """Return a persistent, user-writable directory for saving results.
+
+    - For frozen apps (onefile/onedir), use the directory next to the executable.
+    - For dev, use the project-level 'data' directory.
+    """
+    try:
+        if getattr(sys, 'frozen', False):
+            return os.path.join(os.path.dirname(sys.executable), 'data')
+    except Exception:
+        pass
+    # Dev mode: project root /data
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
 
 
-def _get_exe_override_path(rel_path: str) -> str | None:
-    """When running as a frozen exe, return the override path next to the exe."""
+def get_exe_override_path(rel_path: str) -> str | None:
+    """When running as a frozen exe, return the override path next to the exe.
+
+    Example: rel_path='configs/layout.json' -> '<exe_dir>/configs/layout.json'
+    Returns None if not frozen.
+    """
     try:
         if getattr(sys, 'frozen', False):
             exe_dir = os.path.dirname(sys.executable)
@@ -39,14 +61,15 @@ def _get_exe_override_path(rel_path: str) -> str | None:
     return None
 
 
-def load_sequence(sequence_path: str | None = None) -> dict:
-    """Load sequence.json configuration.
+# Module-level constants
+BASE_DIR = get_base_dir()
+SEQUENCE_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')
+LAYOUT_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
 
-    Args:
-        sequence_path: Optional absolute path; when None uses default under BASE_DIR.
-    """
-    path = sequence_path or SEQUENCE_DEFAULT_PATH
-    with open(path, 'r', encoding='utf-8') as f:
+
+def load_sequence() -> dict:
+    """Load sequence.json configuration from default path."""
+    with open(SEQUENCE_DEFAULT_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -69,7 +92,7 @@ def load_layout() -> dict:
         layout = json.load(f)
 
     # Step 2: Check for external override (only when frozen)
-    override_path = _get_exe_override_path(os.path.join('configs', 'layout.json'))
+    override_path = get_exe_override_path(os.path.join('configs', 'layout.json'))
     if override_path and os.path.exists(override_path):
         try:
             with open(override_path, 'r', encoding='utf-8') as f:

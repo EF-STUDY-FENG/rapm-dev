@@ -25,20 +25,18 @@ sys.modules['psychopy.gui'] = MockModule()
 sys.modules['PIL'] = MockModule()
 sys.modules['PIL.Image'] = MockModule()
 
-from raven_task import (
-    _get_base_dir,
-    _get_output_dir,
-    _is_stimuli_dir_empty,
+from config_loader import get_base_dir, get_output_dir, load_sequence, load_layout
+from path_utils import (
+    is_stimuli_dir_empty,
     resolve_path,
     file_exists_nonempty,
     load_answers,
 )
-from config_loader import load_sequence, load_layout
 
 
 def test_base_dir_exists():
     """Test that base directory can be determined and exists."""
-    base_dir = _get_base_dir()
+    base_dir = get_base_dir()
     assert base_dir is not None, "BASE_DIR should not be None"
     assert os.path.isdir(base_dir), f"BASE_DIR should be a directory: {base_dir}"
     print(f"✓ BASE_DIR exists: {base_dir}")
@@ -46,7 +44,7 @@ def test_base_dir_exists():
 
 def test_output_dir_exists():
     """Test that output directory can be determined and is writable."""
-    output_dir = _get_output_dir()
+    output_dir = get_output_dir()
     assert output_dir is not None, "Output dir should not be None"
     # Output dir might not exist yet, but parent should
     parent = os.path.dirname(output_dir)
@@ -54,24 +52,25 @@ def test_output_dir_exists():
     print(f"✓ Output dir determined: {output_dir}")
 
 
+
 def test_is_stimuli_dir_empty():
     """Test stimuli directory emptiness detection."""
     # Test 1: Non-existent directory should be considered empty
-    assert _is_stimuli_dir_empty("/non/existent/path"), "Non-existent dir should be empty"
+    assert is_stimuli_dir_empty("/non/existent/path"), "Non-existent dir should be empty"
 
     # Test 2: Create temp directory with only .gitignore
     with tempfile.TemporaryDirectory() as tmpdir:
         gitignore_path = os.path.join(tmpdir, '.gitignore')
         with open(gitignore_path, 'w') as f:
             f.write("*\n")
-        assert _is_stimuli_dir_empty(tmpdir), "Dir with only .gitignore should be empty"
+        assert is_stimuli_dir_empty(tmpdir), "Dir with only .gitignore should be empty"
 
     # Test 3: Create temp directory with actual file
     with tempfile.TemporaryDirectory() as tmpdir:
         test_file = os.path.join(tmpdir, 'test.png')
         with open(test_file, 'w') as f:
             f.write("dummy")
-        assert not _is_stimuli_dir_empty(tmpdir), "Dir with files should not be empty"
+        assert not is_stimuli_dir_empty(tmpdir), "Dir with files should not be empty"
 
     print("✓ Stimuli directory emptiness detection works correctly")
 

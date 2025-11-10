@@ -11,196 +11,21 @@ Features:
 Dependencies: psychopy
 """
 from psychopy import visual, event, core, gui
-import platform
-try:
-    from PIL import Image as PILImage  # for reading image size to preserve aspect ratio
-except Exception:
-    PILImage = None
 import json
 import os
 import csv
-import sys
 from datetime import datetime
+from config_loader import get_output_dir, load_sequence, load_layout
+from path_utils import (
+    resolve_path,
+    file_exists_nonempty,
+    load_answers,
+    get_image_pixel_size,
+    fitted_size_keep_aspect
+)
 
-def _get_base_dir() -> str:
-    """Return base directory for read-only resources (configs/stimuli).
-
-    Note: In PyInstaller onefile, resources are unpacked to a temporary
-    extraction directory (sys._MEIPASS). That location is read-only and may be
-    deleted after exit, so DO NOT write output files there.
-    """
-    try:
-        # PyInstaller onefile provides a temporary extraction dir
-        meipass = getattr(sys, '_MEIPASS', None)
-        if meipass and os.path.isdir(meipass):
-            return meipass
-        # Onedir: use the executable directory so bundled folders like 'configs/' work
-        if getattr(sys, 'frozen', False):
-            return os.path.dirname(sys.executable)
-    except Exception:
-        pass
-    # Normal dev mode: project root (scripts/..)
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-
-def _get_output_dir() -> str:
-    """Return a persistent, user-writable directory for saving results.
-
-    - For frozen apps (onefile/onedir), use the directory next to the executable.
-    - For dev, use the project-level 'data' directory.
-    """
-    try:
-        if getattr(sys, 'frozen', False):
-            return os.path.join(os.path.dirname(sys.executable), 'data')
-    except Exception:
-        pass
-    # Dev mode: project root /data
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
-
-BASE_DIR = _get_base_dir()
-SEQUENCE_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')  # experiment sequence
-DATA_DIR = _get_output_dir()
-LAYOUT_CONFIG_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')  # separate layout
-
-
-def _get_exe_override_path(rel_path: str) -> str | None:
-    """When running as a frozen exe, return the override path next to the exe.
-
-    Example: rel_path='configs/layout.json' -> '<exe_dir>/configs/layout.json'
-    Returns None if not frozen.
-    """
-    try:
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
-            return os.path.join(exe_dir, rel_path)
-    except Exception:
-        pass
-    return None
-
-
-def file_exists_nonempty(path: str) -> bool:
-    try:
-        p = resolve_path(path)
-        return os.path.isfile(p) and os.path.getsize(p) > 0
-    except Exception:
-        return False
-
-
-def _is_stimuli_dir_empty(dirpath: str) -> bool:
-    """Check if stimuli directory is empty or contains only .gitignore."""
-    try:
-        if not os.path.isdir(dirpath):
-            return True
-        entries = os.listdir(dirpath)
-        # Empty or only .gitignore means we should look elsewhere
-        return len(entries) == 0 or (len(entries) == 1 and entries[0] == '.gitignore')
-    except Exception:
-        return True
-
-
-def resolve_path(p: str) -> str:
-    """Resolve a possibly relative path with intelligent stimuli fallback.
-
-    Priority:
-    1. If absolute path exists, use it
-    2. Try BASE_DIR / path (bundled resources or dev mode)
-       - For stimuli paths: check if directory is empty/only has .gitignore
-       - If empty, fallback to exe directory (for frozen builds)
-    3. Try executable directory / path (fallback for empty bundled stimuli)
-
-    This allows GitHub Actions to build with empty stimuli/ that users populate later.
-    """
-    if os.path.isabs(p):
-        if os.path.exists(p):
-            return p
-
-    # Try bundled/dev resource path first
-    candidate = os.path.join(BASE_DIR, p)
-
-    # Special handling for stimuli directory in frozen builds
-    if getattr(sys, 'frozen', False) and p.startswith('stimuli'):
-        # Check if bundled stimuli is empty
-        stimuli_base = os.path.join(BASE_DIR, 'stimuli')
-        if _is_stimuli_dir_empty(stimuli_base):
-            # Bundled stimuli is empty, try exe directory
-            try:
-                exe_dir = os.path.dirname(sys.executable)
-                fallback = os.path.join(exe_dir, p)
-                if os.path.exists(fallback):
-                    return fallback
-            except Exception:
-                pass
-
-    # For non-stimuli paths or non-frozen, use normal candidate
-    if os.path.exists(candidate):
-        return candidate
-
-    # Last resort fallback to exe directory (for any missing files in frozen mode)
-    try:
-        if getattr(sys, 'frozen', False):
-            exe_dir = os.path.dirname(sys.executable)
-            fallback = os.path.join(exe_dir, p)
-            if os.path.exists(fallback):
-                return fallback
-    except Exception:
-        pass
-
-    # Return first candidate even if not exists (for error messages)
-    return candidate
-
-
-def load_answers(answer_file: str) -> list[int]:
-    path = resolve_path(answer_file)
-    answers: list[int] = []
-    with open(path, 'r', encoding='utf-8') as f:
-        for line in f:
-            s = line.strip()
-            if not s:
-                continue
-            try:
-                answers.append(int(s))
-            except ValueError:
-                continue
-    return answers
-
-
-# Cache for image sizes to avoid re-opening files each frame
-_IMG_SIZE_CACHE: dict[str, tuple[int, int]] = {}
-
-
-def get_image_pixel_size(path: str) -> tuple[int, int] | None:
-    if PILImage is None:
-        return None
-    abs_path = resolve_path(path)
-    if abs_path in _IMG_SIZE_CACHE:
-        return _IMG_SIZE_CACHE[abs_path]
-    try:
-        with PILImage.open(abs_path) as im:
-            size = im.size  # (width, height) in pixels
-            _IMG_SIZE_CACHE[abs_path] = size
-            return size
-    except Exception:
-        return None
-
-
-def fitted_size_keep_aspect(path: str, max_w: float, max_h: float) -> tuple[float, float]:
-    """Compute display size (norm units) that fits within max box while preserving aspect ratio."""
-    px = get_image_pixel_size(path)
-    if not px:
-        return max_w, max_h
-    pw, ph = px
-    if pw <= 0 or ph <= 0:
-        return max_w, max_h
-    img_ratio = pw / ph
-    box_ratio = max_w / max_h if max_h > 0 else img_ratio
-    if img_ratio >= box_ratio:
-        # width-limited
-        w = max_w
-        h = w / img_ratio
-    else:
-        # height-limited
-        h = max_h
-        w = h * img_ratio
-    return w, h
+# Use imported functions from config_loader for consistency
+DATA_DIR = get_output_dir()
 
 
 def build_items_from_pattern(pattern: str, count: int, answers: list[int], start_index: int, section_prefix: str) -> list[dict]:
@@ -985,11 +810,6 @@ class RavenTask:
             self.win.flip()
 
 
-def load_config(path):
-    with open(path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-
 def get_participant_info():
     default = {
         'participant_id': '',
@@ -1009,12 +829,9 @@ def get_participant_info():
         gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
 
 
-from config_loader import load_sequence, load_layout
-
-
 def main():
     # 分离加载 sequence 与 layout
-    sequence = load_sequence(SEQUENCE_PATH)
+    sequence = load_sequence()
     layout = load_layout()
 
     # Retry loop for participant info
