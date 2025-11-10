@@ -43,19 +43,19 @@ def build_items_from_pattern(
     section_prefix: str,
 ) -> list[dict]:
     """Build item list from file pattern template.
-    
+
     Generates item dictionaries by expanding a pattern template with indices.
     Example pattern: 'stimuli/images/RAPM_t{XX}-{Y}.jpg'
     - {XX}: zero-padded item number (01, 02, ...)
     - {Y}: 0 for question, 1-8 for options
-    
+
     Args:
         pattern: Path template with {XX} and {Y} placeholders
         count: Number of items to generate
         answers: List of correct answer indices
         start_index: Offset for answer lookup
         section_prefix: Prefix for item IDs ('P' or 'F')
-        
+
     Returns:
         List of item dicts with id, question_image, options, correct
     """
@@ -64,7 +64,7 @@ def build_items_from_pattern(
         XX = f"{i:02d}"
         q_path = pattern.replace('{XX}', XX).replace('{Y}', '0')
         option_paths = [
-            pattern.replace('{XX}', XX).replace('{Y}', str(opt)) 
+            pattern.replace('{XX}', XX).replace('{Y}', str(opt))
             for opt in range(1, 9)
         ]
         correct = None
@@ -86,14 +86,14 @@ def build_items_from_pattern(
 
 class RavenTask:
     """Raven's Advanced Progressive Matrices experiment controller.
-    
+
     Manages the complete experiment lifecycle:
     1. Window creation (debug: 1280x800, normal: fullscreen)
     2. Practice section with instruction
     3. Formal section with instruction
     4. Results persistence (CSV + JSON metadata)
     5. Window cleanup
-    
+
     Key features:
     - Config-driven instructions and timing
     - Debug mode for rapid testing
@@ -101,11 +101,11 @@ class RavenTask:
     - Auto-advance to next unanswered item
     - Submit button in formal section
     """
-    
+
     # -------------------------------------------------------------------------
     # LIFECYCLE & CORE
     # -------------------------------------------------------------------------
-    
+
     def __init__(
         self,
         sequence: dict[str, Any],
@@ -113,7 +113,7 @@ class RavenTask:
         participant_info: Optional[dict[str, Any]] = None,
     ) -> None:
         """Initialize task with configuration and participant info.
-        
+
         Args:
             sequence: Practice/formal config from configs/sequence.json
             layout: UI layout parameters from configs/layout.json
@@ -121,27 +121,23 @@ class RavenTask:
         """
         # Window managed by run() method
         self.win = None
-        
-        # Section configs
-        self.sequence = {
-            'practice': sequence['practice'],
-            'formal': sequence['formal']
-        }
-        self.practice = self.sequence['practice']
-        self.formal = self.sequence['formal']
-        
+
+        # Section configs (directly assigned, no intermediate dictionary)
+        self.practice = sequence['practice']
+        self.formal = sequence['formal']
+
         # Participant and answer tracking
         self.participant_info = participant_info or {}
         self.practice_answers = {}
         self.formal_answers = {}
-        
+
         # Layout parameters (guaranteed complete by config_loader merge)
         self.layout = dict(layout)
-        
+
         # Debug mode: layout flag OR participant_id == '0'
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = self.layout.get('debug_mode', False) or (pid == '0')
-        
+
         # Timing state (set dynamically in run_section)
         self.practice_deadline = None
         self.formal_deadline = None
@@ -149,10 +145,10 @@ class RavenTask:
         self.formal_start_time = None
         self.practice_last_times = {}
         self.formal_last_times = {}
-        
+
         # Navigation constants
         self.max_visible_nav = 12
-        
+
         # Build item lists from patterns if answers file provided
         answers_file = sequence.get('answers_file') if isinstance(sequence, dict) else None
         if answers_file:
@@ -160,60 +156,60 @@ class RavenTask:
                 answers = load_answers(answers_file)
             except Exception:
                 answers = []
-            
+
             p_count = int(self.practice.get('count', 0))
             p_pattern = self.practice.get('pattern')
             if p_count and p_pattern:
                 self.practice['items'] = build_items_from_pattern(
                     p_pattern, p_count, answers, 0, 'P'
                 )
-            
+
             f_count = int(self.formal.get('count', 0))
             f_pattern = self.formal.get('pattern')
             if f_count and f_pattern:
                 self.formal['items'] = build_items_from_pattern(
                     f_pattern, f_count, answers, p_count, 'F'
                 )
-    
+
     def L(self, key: str) -> Any:
         """Strict layout parameter accessor with informative errors.
-        
+
         Args:
             key: Layout parameter name
-            
+
         Returns:
             Layout value
-            
+
         Raises:
             KeyError: If key missing from layout config
         """
         if key not in self.layout:
             raise KeyError(f"layout.json 缺少必须的键: {key}")
         return self.layout[key]
-    
+
     def run(self) -> None:
         """Main entry point: create window → run sections → save → cleanup."""
         # Create window based on debug mode
         if self.debug_mode:
             self.win = visual.Window(
-                size=(1280, 800), 
-                color='black', 
+                size=(1280, 800),
+                color='black',
                 units='norm'
             )
         else:
             self.win = visual.Window(
-                fullscr=True, 
-                color='black', 
+                fullscr=True,
+                color='black',
                 units='norm'
             )
-        
+
         try:
             # Run practice (instruction shown inside run_section)
             self.practice_last_times = self.run_section('practice')
-            
+
             # Run formal (instruction shown inside run_section)
             self.formal_last_times = self.run_section('formal')
-            
+
             # Save and show completion message
             self.save_and_exit()
         finally:
@@ -223,20 +219,20 @@ class RavenTask:
                     self.win.close()
             except Exception:
                 pass
-    
+
     def run_section(self, section: str) -> dict[str, float]:
         """Execute a complete test section with instruction → test loop → timeout.
-        
+
         Handles:
         - Instruction display with countdown button
         - Deadline initialization
         - Main event loop (draw → input → navigation)
         - Submit button (formal only, when all answered)
         - Auto-advance to next unanswered item
-        
+
         Args:
             section: 'practice' or 'formal'
-            
+
         Returns:
             Dict mapping item_id → answer timestamp
         """
@@ -246,13 +242,13 @@ class RavenTask:
         n_items = len(items)
         if n_items == 0:
             return {}
-        
+
         # Show instruction with button
         instruction_text = cfg['config'].get('instruction', '')
         button_text = cfg['config'].get('button_text', '继续')
         if instruction_text:
             self.show_instruction(instruction_text, button_text=button_text)
-        
+
         # Initialize deadline and start time
         start_time = core.getTime()
         if section == 'practice':
@@ -269,17 +265,17 @@ class RavenTask:
             else:
                 self.formal_deadline = start_time + cfg['config']['time_limit_minutes'] * 60
             deadline = self.formal_deadline
-        
+
         # Initialize state
         answers = cfg['answers']
         current_index = 0
         nav_offset = 0
         last_times = {}
-        
+
         # Main event loop
         while core.getTime() < deadline:
             item = items[current_index]
-            
+
             # Draw navigation bar (buttons + arrows)
             nav_items, l_rect, l_txt, r_rect, r_txt = self._build_navigation(
                 items, answers, current_index, nav_offset
@@ -293,7 +289,7 @@ class RavenTask:
             if r_rect:
                 r_rect.draw()
                 r_txt.draw()
-            
+
             # Draw header (timer + progress)
             self.draw_header(
                 deadline=deadline,
@@ -304,24 +300,24 @@ class RavenTask:
                 show_timer=True,
                 show_progress=True,
             )
-            
+
             # Draw question and options
             self.draw_question(item['id'], item.get('question_image'))
             rects = self.create_option_rects()
             prev_choice = answers.get(item['id'])
             self.draw_options(
-                item.get('options', []), 
+                item.get('options', []),
                 rects,
                 selected_index=(prev_choice - 1) if prev_choice else None
             )
-            
+
             # Draw submit button (formal only, when all answered)
             submit_btn = None
             if cfg['show_submit'] and len(answers) == n_items:
                 submit_btn = self._draw_submit_button()
-            
+
             self.win.flip()
-            
+
             # Handle submit button click (formal only)
             if submit_btn:
                 mouse_global = event.Mouse(win=self.win)
@@ -329,13 +325,13 @@ class RavenTask:
                     while any(mouse_global.getPressed()):
                         core.wait(0.01)
                     return last_times
-            
+
             # Handle option click
             choice = self.detect_click_on_rects(rects)
             if choice is not None:
                 answers[item['id']] = choice + 1
                 last_times[item['id']] = core.getTime()
-                
+
                 # Check completion
                 if len(answers) == n_items:
                     if section == 'practice':
@@ -347,7 +343,7 @@ class RavenTask:
                     current_index = next_index
                     nav_offset = self._center_offset(next_index, n_items)
                 continue
-            
+
             # Handle navigation click
             nav_action, current_index, nav_offset = self._handle_navigation_click(
                 nav_items, l_rect, r_rect, items, current_index, nav_offset
@@ -357,23 +353,23 @@ class RavenTask:
                 continue
             if nav_action == 'page':
                 continue
-            
+
             # Timeout check
             if core.getTime() >= deadline:
                 break
-        
+
         return last_times
-    
+
     # -------------------------------------------------------------------------
     # UI DRAWING
     # -------------------------------------------------------------------------
-    
+
     def show_instruction(self, text: str, button_text: str = "继续") -> None:
         """Display instruction screen with countdown button.
-        
+
         In normal mode, button is disabled for instruction_button_delay seconds.
         In debug mode, button is immediately clickable.
-        
+
         Args:
             text: Multi-line instruction text (newline-separated)
             button_text: Label for continue button
@@ -384,36 +380,36 @@ class RavenTask:
         spacing = self.L('instruction_line_spacing')
         show_start = core.getTime()
         delay = 0.0 if self.debug_mode else self.L('instruction_button_delay')
-        
+
         # Button layout
         btn_w = self.L('button_width')
         btn_h = self.L('button_height')
         btn_pos = (self.L('button_x'), self.L('instruction_button_y'))
         label_h = self.L('button_label_height')
         line_w = self.L('button_line_width')
-        
+
         mouse = event.Mouse(win=self.win)
         clickable = False
-        
+
         while True:
             elapsed = core.getTime() - show_start
             if not clickable and elapsed >= delay:
                 clickable = True
-            
+
             # Draw instruction text
             self.draw_multiline(
-                lines, 
-                center_y=center_y, 
-                line_height=line_h, 
+                lines,
+                center_y=center_y,
+                line_height=line_h,
                 spacing=spacing
             )
-            
+
             # Button colors based on state
             if clickable:
                 temp_rect = visual.Rect(
-                    self.win, 
-                    width=btn_w, 
-                    height=btn_h, 
+                    self.win,
+                    width=btn_w,
+                    height=btn_h,
                     pos=btn_pos
                 )
                 hovered = temp_rect.contains(mouse)
@@ -422,37 +418,37 @@ class RavenTask:
             else:
                 fill_col = self.L('button_fill_disabled')
                 outline_col = self.L('button_outline_disabled')
-            
+
             # Draw button
             btn_rect = visual.Rect(
-                self.win, 
-                width=btn_w, 
-                height=btn_h, 
+                self.win,
+                width=btn_w,
+                height=btn_h,
                 pos=btn_pos,
-                lineColor=outline_col, 
-                fillColor=fill_col, 
+                lineColor=outline_col,
+                fillColor=fill_col,
                 lineWidth=line_w
             )
             remaining = int(max(0, delay - elapsed))
             label_text = button_text if clickable else f"{button_text} ({remaining}s)"
             btn_label = visual.TextStim(
-                self.win, 
-                text=label_text, 
-                pos=btn_pos, 
-                height=label_h, 
-                color='white', 
+                self.win,
+                text=label_text,
+                pos=btn_pos,
+                height=label_h,
+                color='white',
                 font=self.L('font_main')
             )
             btn_rect.draw()
             btn_label.draw()
             self.win.flip()
-            
+
             # Check for click
             if clickable and any(mouse.getPressed()) and btn_rect.contains(mouse):
                 while any(mouse.getPressed()):
                     core.wait(0.01)
                 break
-    
+
     def draw_header(
         self,
         deadline: Optional[float],
@@ -464,7 +460,7 @@ class RavenTask:
         show_progress: bool = True,
     ) -> None:
         """Draw header with timer (left) and progress (right).
-        
+
         Args:
             deadline: Absolute deadline timestamp
             show_threshold: Timer visibility threshold (seconds remaining)
@@ -478,7 +474,7 @@ class RavenTask:
             self.draw_timer(deadline, show_threshold, red_threshold)
         if show_progress and total_count is not None:
             self.draw_progress(answered_count, total_count)
-    
+
     def draw_timer(
         self,
         deadline: Optional[float],
@@ -486,25 +482,25 @@ class RavenTask:
         red_threshold: Optional[int] = None,
     ) -> None:
         """Draw countdown timer at header position.
-        
+
         Args:
             deadline: Absolute deadline timestamp
             show_threshold: Only show if remaining <= this (None = always show)
             red_threshold: Turn red if remaining <= this
         """
         remaining = max(0, int(deadline - core.getTime()))
-        
+
         # Conditional visibility
         if show_threshold is not None and remaining > show_threshold:
             return
-        
+
         mins = remaining // 60
         secs = remaining % 60
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
-        
+
         # Color based on urgency
         color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
-        
+
         timerStim = visual.TextStim(
             self.win,
             text=timer_text,
@@ -514,13 +510,13 @@ class RavenTask:
             font=self.L('font_main')
         )
         timerStim.draw()
-    
+
     def draw_progress(self, answered_count: int, total_count: int) -> None:
         """Draw progress indicator (e.g., '已答 12 / 总数 36').
-        
+
         Shows in green when all answered, white otherwise.
         Right-aligned at header level.
-        
+
         Args:
             answered_count: Number of answered items
             total_count: Total items
@@ -528,18 +524,18 @@ class RavenTask:
         answered_count = max(0, min(answered_count, total_count))
         txt = f"已答 {answered_count} / 总数 {total_count}"
         color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
-        
+
         # Position: right side, aligned with navigation arrow
         y = self.L('header_y')
         right_edge_x = self.L('nav_arrow_x_right') - (self.L('nav_arrow_w') / 2.0)
         x = right_edge_x - self.L('progress_right_margin')
-        
+
         progStim = visual.TextStim(
-            self.win, 
-            text=txt, 
-            pos=(x, y), 
-            height=self.L('header_font_size'), 
-            color=color, 
+            self.win,
+            text=txt,
+            pos=(x, y),
+            height=self.L('header_font_size'),
+            color=color,
             font=self.L('font_main')
         )
         try:
@@ -547,7 +543,7 @@ class RavenTask:
         except Exception:
             pass
         progStim.draw()
-    
+
     def draw_multiline(
         self,
         lines: Sequence[str],
@@ -559,7 +555,7 @@ class RavenTask:
         x: float = 0.0,
     ) -> None:
         """Draw multiple lines with custom spacing, centered vertically.
-        
+
         Args:
             lines: Text lines to draw
             center_y: Vertical center in norm units
@@ -573,20 +569,20 @@ class RavenTask:
         n = len(lines)
         if n == 0:
             return
-        
+
         # Calculate vertical span
         total = line_height * spacing * (n - 1) if n > 1 else 0.0
         start_y = center_y + total / 2.0
-        
+
         for i, text in enumerate(lines):
             y = start_y - i * (line_height * spacing)
             color = (colors[i] if (colors and i < len(colors)) else 'white')
             stim = visual.TextStim(
-                self.win, 
-                text=text or '', 
-                pos=(x, y), 
-                height=line_height, 
-                color=color, 
+                self.win,
+                text=text or '',
+                pos=(x, y),
+                height=line_height,
+                color=color,
                 font=self.L('font_main')
             )
             try:
@@ -595,51 +591,51 @@ class RavenTask:
             except Exception:
                 pass
             stim.draw()
-    
+
     def draw_question(self, item_id: str, image_path: Optional[str]) -> None:
         """Draw question image at top center.
-        
+
         Args:
             item_id: Item identifier for fallback display
             image_path: Path to question image
         """
         q_w = self.L('question_box_w') * self.L('scale_question')
         q_h = self.L('question_box_h') * self.L('scale_question')
-        
+
         if image_path and file_exists_nonempty(image_path):
             try:
                 max_w = q_w - self.L('question_img_margin_w')
                 max_h = q_h - self.L('question_img_margin_h')
                 disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
                 img = visual.ImageStim(
-                    self.win, 
-                    image=resolve_path(image_path), 
-                    pos=(0, self.L('question_box_y')), 
+                    self.win,
+                    image=resolve_path(image_path),
+                    pos=(0, self.L('question_box_y')),
                     size=(disp_w, disp_h)
                 )
                 img.draw()
             except Exception:
                 txt = visual.TextStim(
-                    self.win, 
-                    text=f"题目 {item_id}\n(图片加载失败)", 
-                    pos=(0, self.L('question_box_y')), 
-                    height=0.06, 
+                    self.win,
+                    text=f"题目 {item_id}\n(图片加载失败)",
+                    pos=(0, self.L('question_box_y')),
+                    height=0.06,
                     font=self.L('font_main')
                 )
                 txt.draw()
         else:
             txt = visual.TextStim(
-                self.win, 
-                text=f"题目 {item_id}\n(图片占位)", 
-                pos=(0, self.L('question_box_y')), 
-                height=0.06, 
+                self.win,
+                text=f"题目 {item_id}\n(图片占位)",
+                pos=(0, self.L('question_box_y')),
+                height=0.06,
                 font=self.L('font_main')
             )
             txt.draw()
-    
+
     def create_option_rects(self) -> list[Any]:
         """Create option rectangles in a grid layout.
-        
+
         Returns:
             List of visual.Rect objects for option grid
         """
@@ -650,7 +646,7 @@ class RavenTask:
         rect_w = self.L('option_rect_w') * self.L('scale_option')
         rect_h = self.L('option_rect_h') * self.L('scale_option')
         center_y = self.L('option_grid_center_y')
-        
+
         rects: list[Any] = []
         total_cells = cols * rows
         for r in range(rows):
@@ -668,7 +664,7 @@ class RavenTask:
                 )
                 rects.append(rect)
         return rects[:total_cells]
-    
+
     def draw_options(
         self,
         option_paths: list[str],
@@ -676,7 +672,7 @@ class RavenTask:
         selected_index: Optional[int] = None,
     ) -> None:
         """Draw option rectangles and images.
-        
+
         Args:
             option_paths: List of image paths
             rects: Rectangles from create_option_rects()
@@ -693,7 +689,7 @@ class RavenTask:
                 rect.lineWidth = 2
                 rect.fillColor = None
             rect.draw()
-            
+
             # Draw image or placeholder
             if i < len(option_paths):
                 path = option_paths[i]
@@ -710,33 +706,33 @@ class RavenTask:
                     img.draw()
                 else:
                     placeholder = visual.TextStim(
-                        self.win, 
-                        text=str(i+1), 
-                        pos=rect.pos, 
-                        height=0.05, 
-                        color='gray', 
+                        self.win,
+                        text=str(i+1),
+                        pos=rect.pos,
+                        height=0.05,
+                        color='gray',
                         font=self.L('font_main')
                     )
                     placeholder.draw()
-    
+
     def _draw_submit_button(self) -> Any:
         """Draw submit button for formal section.
-        
+
         Returns:
             visual.Rect for click detection
         """
         btn_pos = (self.L('button_x'), self.L('submit_button_y'))
         mouse_local = event.Mouse(win=self.win)
         temp_rect = visual.Rect(
-            self.win, 
+            self.win,
             width=self.L('button_width'),
-            height=self.L('button_height'), 
+            height=self.L('button_height'),
             pos=btn_pos
         )
         hovered = temp_rect.contains(mouse_local)
         fill_col = self.L('button_fill_hover') if hovered else self.L('button_fill_normal')
         outline_col = self.L('button_outline_hover') if hovered else self.L('button_outline_normal')
-        
+
         submit_rect = visual.Rect(
             self.win,
             width=self.L('button_width'),
@@ -757,17 +753,17 @@ class RavenTask:
         submit_rect.draw()
         submit_label.draw()
         return submit_rect
-    
+
     # -------------------------------------------------------------------------
     # EVENT HANDLING
     # -------------------------------------------------------------------------
-    
+
     def detect_click_on_rects(self, rects: list[Any]) -> Optional[int]:
         """Detect mouse click on any rectangle.
-        
+
         Args:
             rects: List of clickable rectangles
-            
+
         Returns:
             Zero-based index of clicked rect, or None
         """
@@ -781,11 +777,11 @@ class RavenTask:
                     core.wait(0.01)
                 return i
         return None
-    
+
     # -------------------------------------------------------------------------
     # NAVIGATION
     # -------------------------------------------------------------------------
-    
+
     def _build_navigation(
         self,
         items: list[dict[str, Any]],
@@ -794,13 +790,13 @@ class RavenTask:
         offset: int,
     ) -> tuple[list[tuple[int, Any, Any]], Any, Any, Any, Any]:
         """Build navigation bar with item buttons and page arrows.
-        
+
         Args:
             items: All items in section
             answers_dict: Map of answered item IDs
             current_index: Currently displayed item
             offset: Scroll offset for pagination
-            
+
         Returns:
             Tuple of (nav_items, left_rect, left_txt, right_rect, right_txt)
         """
@@ -811,24 +807,24 @@ class RavenTask:
         stims = []
         if not visible:
             return stims, None, None, None, None
-        
+
         count = len(visible)
         nav_y = self.L('nav_y')
         x_left_edge = self.L('nav_arrow_x_left')
         x_right_edge = self.L('nav_arrow_x_right')
         arrow_w = self.L('nav_arrow_w')
         gap = self.L('nav_gap')
-        
+
         # Calculate button positions
         x_left = x_left_edge + arrow_w + gap
         x_right = x_right_edge - arrow_w - gap
         span = x_right - x_left
         xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [(x_left + x_right) / 2.0]
-        
+
         item_w = self.L('nav_item_w')
         item_h = self.L('nav_item_h')
         label_h = self.L('nav_label_height')
-        
+
         # Build item buttons
         for i, gi in enumerate(visible):
             answered = items[gi]['id'] in answers_dict
@@ -855,12 +851,12 @@ class RavenTask:
                 font=self.L('font_main')
             )
             stims.append((gi, rect, label))
-        
+
         # Build page arrows
         left_rect = left_txt = right_rect = right_txt = None
         arrow_h = item_h
         arrow_label_h = self.L('nav_arrow_label_height')
-        
+
         if start > 0:
             left_rect = visual.Rect(
                 self.win,
@@ -879,7 +875,7 @@ class RavenTask:
                 bold=True,
                 font=self.L('font_main')
             )
-        
+
         if end < n:
             right_rect = visual.Rect(
                 self.win,
@@ -898,9 +894,9 @@ class RavenTask:
                 bold=True,
                 font=self.L('font_main')
             )
-        
+
         return stims, left_rect, left_txt, right_rect, right_txt
-    
+
     def _handle_navigation_click(
         self,
         nav_items: list[tuple[int, Any, Any]],
@@ -911,7 +907,7 @@ class RavenTask:
         nav_offset: int,
     ) -> tuple[Optional[str], int, int]:
         """Handle clicks on navigation elements.
-        
+
         Args:
             nav_items: List of (index, rect, label) tuples
             left_rect: Left arrow rectangle
@@ -919,7 +915,7 @@ class RavenTask:
             items: All items
             current_index: Current item index
             nav_offset: Current pagination offset
-            
+
         Returns:
             (action, current_index, nav_offset) where action is 'jump'|'page'|None
         """
@@ -931,7 +927,7 @@ class RavenTask:
                     core.wait(0.01)
                 nav_offset = max(0, nav_offset - self.max_visible_nav)
                 return 'page', current_index, nav_offset
-            
+
             # Check right arrow
             if right_rect and right_rect.contains(mouse):
                 while any(mouse.getPressed()):
@@ -939,7 +935,7 @@ class RavenTask:
                 max_off = max(0, len(items) - self.max_visible_nav)
                 nav_offset = min(max_off, nav_offset + self.max_visible_nav)
                 return 'page', current_index, nav_offset
-            
+
             # Check item buttons
             for gi, rect, label in nav_items:
                 if rect.contains(mouse) or label.contains(mouse):
@@ -947,16 +943,16 @@ class RavenTask:
                         core.wait(0.01)
                     current_index = gi
                     return 'jump', current_index, nav_offset
-        
+
         return None, current_index, nav_offset
-    
+
     def _center_offset(self, index: int, total: int) -> int:
         """Calculate pagination offset to center given index.
-        
+
         Args:
             index: Item index to center
             total: Total number of items
-            
+
         Returns:
             Pagination offset
         """
@@ -970,17 +966,17 @@ class RavenTask:
         if offset > max_off:
             offset = max_off
         return offset
-    
+
     # -------------------------------------------------------------------------
     # SECTION CONFIGURATION
     # -------------------------------------------------------------------------
-    
+
     def _get_section_config(self, section: str) -> dict[str, Any]:
         """Build runtime config dictionary for a section.
-        
+
         Args:
             section: 'practice' or 'formal'
-            
+
         Returns:
             Config dict with keys: config, answers, deadline, show_submit, etc.
         """
@@ -994,7 +990,7 @@ class RavenTask:
                 'timer_show_threshold': None,
                 'timer_red_threshold': None,
             }
-        
+
         # Formal section
         if self.debug_mode:
             show_t = self.L('debug_timer_show_threshold')
@@ -1002,7 +998,7 @@ class RavenTask:
         else:
             show_t = self.L('formal_timer_show_threshold')
             red_t = self.L('timer_red_threshold')
-        
+
         return {
             'config': self.formal,
             'answers': self.formal_answers,
@@ -1012,7 +1008,7 @@ class RavenTask:
             'timer_show_threshold': show_t,
             'timer_red_threshold': red_t,
         }
-    
+
     def _find_next_unanswered(
         self,
         items: list[dict[str, Any]],
@@ -1020,20 +1016,20 @@ class RavenTask:
         current_index: int,
     ) -> int:
         """Find next unanswered item for auto-advance.
-        
+
         Searches forward from current position. If on last item, wraps to start.
-        
+
         Args:
             items: All items
             answers_dict: Map of answered item IDs
             current_index: Current item index
-            
+
         Returns:
             Index of next unanswered item (or current if none found)
         """
         n_items = len(items)
         next_index = current_index
-        
+
         # Wrap-around check if on last item
         if current_index == n_items - 1:
             for k in range(n_items):
@@ -1049,36 +1045,36 @@ class RavenTask:
             # Fallback: advance by one if nothing found
             if next_index == current_index and current_index < n_items - 1:
                 next_index += 1
-        
+
         return next_index
-    
+
     # -------------------------------------------------------------------------
     # DATA PERSISTENCE
     # -------------------------------------------------------------------------
-    
+
     def save_and_exit(self) -> None:
         """Save results to CSV and JSON, then show completion message.
-        
+
         Creates two files in DATA_DIR:
         - raven_results_TIMESTAMP.csv: Detailed trial-by-trial data
         - raven_session_TIMESTAMP.json: Session metadata and summary stats
         """
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         os.makedirs(DATA_DIR, exist_ok=True)
-        
+
         # Save CSV
         out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
         pid = self.participant_info.get('participant_id', '')
         practice_correct = 0
         formal_correct = 0
-        
+
         with open(out_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             writer.writerow([
-                'participant_id', 'section', 'item_id', 'answer', 
+                'participant_id', 'section', 'item_id', 'answer',
                 'correct', 'is_correct', 'time'
             ])
-            
+
             def write_section(section, items, answers, last_times, start_time):
                 nonlocal practice_correct, formal_correct
                 for item in items:
@@ -1086,34 +1082,34 @@ class RavenTask:
                     ans = answers.get(iid)
                     correct = item.get('correct')
                     is_correct = (ans == correct) if (ans is not None and correct is not None) else None
-                    
+
                     if is_correct:
                         if section == 'practice':
                             practice_correct += 1
                         else:
                             formal_correct += 1
-                    
+
                     t2 = last_times.get(iid, None)
                     t0 = start_time
                     time_used = ''
                     if t0 is not None and t2 is not None:
                         time_used = f"{t2-t0:.3f}"
-                    
+
                     writer.writerow([
-                        pid, section, iid, 
-                        ans if ans is not None else '', 
-                        correct if correct is not None else '', 
-                        '1' if is_correct else ('0' if is_correct is not None else ''), 
+                        pid, section, iid,
+                        ans if ans is not None else '',
+                        correct if correct is not None else '',
+                        '1' if is_correct else ('0' if is_correct is not None else ''),
                         time_used
                     ])
-            
-            write_section('practice', self.practice.get('items', []), 
-                         self.practice_answers, self.practice_last_times, 
+
+            write_section('practice', self.practice.get('items', []),
+                         self.practice_answers, self.practice_last_times,
                          self.practice_start_time)
-            write_section('formal', self.formal.get('items', []), 
-                         self.formal_answers, self.formal_last_times, 
+            write_section('formal', self.formal.get('items', []),
+                         self.formal_answers, self.formal_last_times,
                          self.formal_start_time)
-        
+
         # Save JSON metadata
         meta = {
             'participant': self.participant_info,
@@ -1139,17 +1135,17 @@ class RavenTask:
                 json.dump(meta, mf, ensure_ascii=False, indent=2)
         except Exception:
             pass
-        
+
         # Show completion message
         lines = ['作答完成！', '感谢您的作答！']
         colors = ['green', 'white']
         for _ in range(300):  # ~5 seconds
             self.draw_multiline(
-                lines, 
-                center_y=0.05, 
-                line_height=0.065, 
+                lines,
+                center_y=0.05,
+                line_height=0.065,
                 spacing=1.5,
-                colors=colors, 
+                colors=colors,
                 bold_idx={0}
             )
             self.win.flip()
