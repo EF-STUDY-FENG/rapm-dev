@@ -5,7 +5,6 @@ Tests path resolution, config loading, and utility functions without requiring P
 import sys
 import os
 import tempfile
-import shutil
 
 # Add src to path and mock psychopy before importing raven_task
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -85,7 +84,7 @@ def test_resolve_path_configs():
     assert os.path.exists(sequence_config) or os.path.exists(layout_config), \
         "At least one config file should be resolvable"
 
-    print(f"✓ Config path resolution works")
+    print("✓ Config path resolution works")
     if os.path.exists(sequence_config):
         print(f"  - sequence.json: {sequence_config}")
     if os.path.exists(layout_config):
@@ -153,7 +152,7 @@ def test_configs_are_valid_json():
             assert isinstance(data, dict), "sequence.json should be a JSON object"
             assert 'practice' in data or 'formal' in data, \
                 "sequence.json should have practice or formal section"
-        print(f"✓ sequence.json is valid JSON")
+        print("✓ sequence.json is valid JSON")
         configs_tested += 1
 
     if os.path.exists(layout_config):
@@ -161,7 +160,7 @@ def test_configs_are_valid_json():
             data = json.load(f)
             assert isinstance(data, dict), "layout.json should be a JSON object"
             assert 'font_main' in data, "layout.json should contain font_main key"
-        print(f"✓ layout.json is valid JSON & contains font_main")
+        print("✓ layout.json is valid JSON & contains font_main")
         configs_tested += 1
 
     assert configs_tested > 0, "At least one config file should exist and be tested"

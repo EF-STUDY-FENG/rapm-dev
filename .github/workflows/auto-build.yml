@@ -38,6 +38,9 @@ jobs:
 
       - name: Run Tests
         run: |
+          # Static analysis (Ruff fast checks)
+          pip install ruff==0.6.2
+          ruff check . --quiet || exit 1
           # Syntax check
           conda run -n psychopy-dev python -m py_compile src/run_raven.py
           Write-Host "✓ Syntax check passed" -ForegroundColor Green
@@ -72,6 +75,9 @@ jobs:
 
       - name: Run Tests
         run: |
+          # Static analysis (Ruff fast checks)
+          pip install ruff==0.6.2
+          ruff check . --quiet || exit 1
           # Syntax check
           conda run -n psychopy-dev python -m py_compile src/run_raven.py
           Write-Host "✓ Syntax check passed" -ForegroundColor Green

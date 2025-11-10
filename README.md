@@ -68,7 +68,7 @@ pwsh -File build_exe.ps1 -Icon .\assets\app.ico
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+（Conda 环境使用 3.11）
 - PsychoPy
 
 ## Installation

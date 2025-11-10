@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Raven Task Core Module - RavenTask class and helper functions
 
 This module contains the core experiment logic:
@@ -14,8 +16,7 @@ from path_utils import (
     resolve_path,
     file_exists_nonempty,
     load_answers,
-    get_image_pixel_size,
-    fitted_size_keep_aspect
+    fitted_size_keep_aspect,
 )
 
 # Use imported functions from config_loader for consistency
@@ -332,7 +333,6 @@ class RavenTask:
         total_cells = cols * rows
         for r in range(rows):
             for c in range(cols):
-                idx = r * cols + c
                 # Coordinate system: col 0 left, row 0 top
                 x = (c - (cols - 1) / 2) * dx
                 y = center_y - (r - (rows - 1) / 2) * dy

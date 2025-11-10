@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Path resolution and file utilities for RAPM experiment.
 
 This module provides intelligent path resolution with support for:

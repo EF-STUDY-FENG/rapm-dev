@@ -1,0 +1,11 @@
+[tool.ruff]
+# Start with Pyflakes-only to minimize churn; we can expand later.
+select = ["F"]
+line-length = 120
+
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black"
