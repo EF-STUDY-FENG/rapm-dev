@@ -120,38 +120,10 @@ class RavenTask:
             self.win = visual.Window(fullscr=True, color='black', units='norm')
 
         try:
-            # Practice instructions
-            self.show_instruction(
-                "下面将进行的是瑞文高级推理测验\n"
-                "每道题目的上方是一张大图，大图的图案缺了一部分\n"
-                "请你从下面8个备选图形中找出大图的缺失部分，并选中它\n"
-                "在正式测试之前，有12道练习题目\n"
-                "限时10分钟",
-                button_text="开始练习"
-            )
-            # Practice deadline
-            self.practice_start_time = core.getTime()
-            if self.debug_mode:
-                self.practice_deadline = self.practice_start_time + 10
-            else:
-                self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
+            # Run practice section (instruction shown inside run_section)
             self.practice_last_times = self.run_section('practice')
 
-            # Formal instructions
-            self.show_instruction(
-                "练习结束，下面将开始正式测试\n"
-                "正式测试一共有36道题目\n"
-                "题目按从易到难的顺序编排\n"
-                "限时40分钟\n"
-                "只剩最后10分钟时将倒计时提醒您",
-                button_text="开始测试"
-            )
-            # Formal deadline
-            self.formal_start_time = core.getTime()
-            if self.debug_mode:
-                self.formal_deadline = self.formal_start_time + 25
-            else:
-                self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
+            # Run formal section (instruction shown inside run_section)
             self.formal_last_times = self.run_section('formal')
 
             # Save results
@@ -525,8 +497,30 @@ class RavenTask:
         if n_items == 0:
             return {}
 
+        # Show instruction and set deadline at the start of the section
+        instruction_text = cfg['config'].get('instruction', '')
+        button_text = cfg['config'].get('button_text', '继续')
+        if instruction_text:
+            self.show_instruction(instruction_text, button_text=button_text)
+
+        # Set deadline and start time for this section
+        start_time = core.getTime()
+        if section == 'practice':
+            self.practice_start_time = start_time
+            if self.debug_mode:
+                self.practice_deadline = start_time + 10
+            else:
+                self.practice_deadline = start_time + cfg['config']['time_limit_minutes'] * 60
+            deadline = self.practice_deadline
+        else:  # formal
+            self.formal_start_time = start_time
+            if self.debug_mode:
+                self.formal_deadline = start_time + 25
+            else:
+                self.formal_deadline = start_time + cfg['config']['time_limit_minutes'] * 60
+            deadline = self.formal_deadline
+
         answers = cfg['answers']
-        deadline = cfg['deadline']
         # Local navigation state (no longer stored as object attributes)
         current_index = 0
         nav_offset = 0
