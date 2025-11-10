@@ -1,6 +1,6 @@
 # Build script for Windows PowerShell to create a standalone .exe for the PsychoPy task
 # Usage:
-#   pwsh -File scripts/build_exe.ps1
+#   pwsh -File build_exe.ps1
 # Notes:
 # - Run this inside the intended Python environment where PsychoPy is installed.
 # - The script will install PyInstaller if it is missing.
@@ -34,7 +34,7 @@ function Install-PackageIfMissing($pkg) {
 Write-Host "Checking PyInstaller availability ..."
 Install-PackageIfMissing -pkg "pyinstaller"
 
-$root = Split-Path -Parent $PSScriptRoot
+$root = $PSScriptRoot
 Push-Location $root
 
 # Paths

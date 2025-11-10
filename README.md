@@ -40,13 +40,13 @@ raven-dev/
 
 ```powershell
 # 无控制台窗口、按目录输出（推荐分发）
-pwsh -File scripts/build_exe.ps1
+pwsh -File build_exe.ps1
 
 # 生成单文件 .exe（启动时解压较慢）
-pwsh -File scripts/build_exe.ps1 -OneFile
+pwsh -File build_exe.ps1 -OneFile
 
 # 调试时显示控制台窗口
-pwsh -File scripts/build_exe.ps1 -Console
+pwsh -File build_exe.ps1 -Console
 ```
 
 完成后，产物位于 `dist/` 目录下：`dist/RavenTask/`（目录模式）或 `dist/RavenTask.exe`（单文件模式）。
@@ -58,7 +58,7 @@ pwsh -File scripts/build_exe.ps1 -Console
 - 自定义图标示例：
 
 ```powershell
-pwsh -File scripts/build_exe.ps1 -Icon .\assets\app.ico
+pwsh -File build_exe.ps1 -Icon .\assets\app.ico
 ```
 
 ### 常见问题

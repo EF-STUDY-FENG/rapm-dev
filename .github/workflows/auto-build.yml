@@ -82,7 +82,7 @@ jobs:
 
       - name: Build EXE with PyInstaller (onefile)
         run: |
-          pwsh -File scripts/build_exe.ps1 -OneFile
+          pwsh -File build_exe.ps1 -OneFile
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
