@@ -1,22 +1,24 @@
-"""Raven Advanced Reasoning Task - Entry Point
+"""Raven Advanced Progressive Matrices – Entry Point
 
-This is the main entry file for the Raven Advanced Reasoning Test.
-It handles:
-- Participant information collection
-- Window initialization (debug vs fullscreen mode)
-- Task execution coordination
+This module is the application entry for the Raven APM task. It is responsible for:
+- Collecting participant information via a PsychoPy dialog
+- Initializing the display window (fullscreen in normal mode, 1280×800 window in debug mode)
+- Loading configuration and delegating the experiment flow to `raven_task.RavenTask`
 
-The core experiment logic is in raven_task.RavenTask.
+Current behavior (reflects the latest implementation):
+- Two sections: Practice (Set I) and Formal (Set II). The section content, item counts and timing are defined in `configs/sequence.json`.
+- Navigation bar: a clickable item-number strip is shown at the top in both sections, allowing direct jumps between items.
+- Timer and progress in the header: always drawn in a unified header line. In practice the timer is always visible; in formal the timer is shown only when the remaining time is below a configurable threshold (`layout.json`). The timer turns red under a configurable warning threshold.
+- Practice: selecting an option records the answer and typically advances to the next item; the section ends when all items are answered or the time limit is reached (no submit button in practice).
+- Formal: after all items are answered, a persistent "Submit" button appears at the bottom; data is saved only after the user clicks it. If time runs out, answers are auto-saved.
+- Data output: on submit (or timeout in formal), results are written to the `data/` folder as a per-trial CSV and a session-level JSON summary.
 
-Features:
-- Practice Set I: linear progression, auto-advance after selection, 10 min total cap.
-- Formal Set II: user can navigate back to previously answered items to modify answers within 40 min cap.
-- Navigation strip at the TOP (formal only): clickable item IDs; current highlighted; answered marked.
-- Countdown timer near top.
-- After last formal item answered: show a persistent Submit button at bottom (does NOT auto-submit).
-- Data saved to data/raven_results_YYYYMMDD_HHMMSS.csv upon submit.
+Debug mode:
+- Enable by setting `"debug_mode": true` in `configs/layout.json`, or by entering participant_id `0` in the dialog.
+- Shortened timing: Practice 10 s, Formal 25 s. In formal, the timer becomes visible/red at 20 s/10 s respectively. The window runs in 1280×800 for convenience.
 
-Dependencies: psychopy
+See `config_loader.py` and `path_utils.py` for configuration loading and robust resource resolution suitable for both development and PyInstaller builds.
+Dependencies: PsychoPy.
 """
 from psychopy import visual, gui
 from config_loader import load_sequence, load_layout
