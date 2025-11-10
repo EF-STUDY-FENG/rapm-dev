@@ -7,6 +7,7 @@ This module contains the core experiment logic:
 - build_items_from_pattern: Helper function to build item lists from patterns
 """
 from psychopy import visual, event, core
+from typing import Any, Optional, Sequence
 import json
 import os
 import csv
@@ -23,7 +24,13 @@ from path_utils import (
 DATA_DIR = get_output_dir()
 
 
-def build_items_from_pattern(pattern: str, count: int, answers: list[int], start_index: int, section_prefix: str) -> list[dict]:
+def build_items_from_pattern(
+    pattern: str,
+    count: int,
+    answers: list[int],
+    start_index: int,
+    section_prefix: str,
+) -> list[dict]:
     """Build items list using pattern like 'stimuli/images/RAPM_t{XX}-{Y}.jpg'.
     - XX: zero-padded item index (01..)
     - Y:  option index (0 for question, 1..8 for options)
@@ -47,7 +54,13 @@ def build_items_from_pattern(pattern: str, count: int, answers: list[int], start
 
 
 class RavenTask:
-    def __init__(self, win, sequence, layout, participant_info=None):
+    def __init__(
+        self,
+        win: Any,
+        sequence: dict[str, Any],
+        layout: dict[str, Any],
+        participant_info: Optional[dict[str, Any]] = None,
+    ) -> None:
         self.win = win
         self.sequence = {
             'practice': sequence['practice'],
@@ -95,12 +108,12 @@ class RavenTask:
                 self.formal['items'] = build_items_from_pattern(f_pattern, f_count, answers, p_count, 'F')
 
     # ---------- Layout accessor ----------
-    def L(self, key):
+    def L(self, key: str) -> Any:
         """Strict accessor for layout values. Missing keys raise a clear error."""
         if key not in self.layout:
             raise KeyError(f"layout.json 缺少必须的键: {key}")
         return self.layout[key]
-    def run(self):
+    def run(self) -> None:
         """Main entry point: run practice then formal test"""
         # Show practice instructions
         self.show_instruction(
@@ -143,7 +156,12 @@ class RavenTask:
         self.save_and_exit()
 
     # ---------- Generic drawing helpers ----------
-    def draw_timer(self, deadline, show_threshold=None, red_threshold=None):
+    def draw_timer(
+        self,
+        deadline: Optional[float],
+        show_threshold: Optional[int] = None,
+        red_threshold: Optional[int] = None,
+    ) -> None:
         """Draw countdown timer.
 
         Args:
@@ -174,9 +192,16 @@ class RavenTask:
         )
         timerStim.draw()
 
-    def draw_multiline(self, lines, center_y: float, line_height: float, spacing: float = 1.5,
-                       colors: list | None = None, bold_idx: set[int] | None = None,
-                       x: float = 0.0):
+    def draw_multiline(
+        self,
+        lines: Sequence[str],
+        center_y: float,
+        line_height: float,
+        spacing: float = 1.5,
+        colors: Optional[list[str]] = None,
+        bold_idx: Optional[set[int]] = None,
+        x: float = 0.0,
+    ) -> None:
         """Draw multiple lines with custom line spacing centered vertically around center_y.
 
         Args:
@@ -206,7 +231,7 @@ class RavenTask:
                 pass
             stim.draw()
 
-    def draw_progress(self, answered_count: int, total_count: int):
+    def draw_progress(self, answered_count: int, total_count: int) -> None:
         """Draw answered/total progress indicator at header_y position.
 
         Green when all answered, white otherwise.
@@ -227,8 +252,16 @@ class RavenTask:
             pass
         progStim.draw()
 
-    def draw_header(self, deadline, show_threshold, red_threshold, answered_count, total_count,
-                    show_timer=True, show_progress=True):
+    def draw_header(
+        self,
+        deadline: Optional[float],
+        show_threshold: Optional[int],
+        red_threshold: Optional[int],
+        answered_count: int,
+        total_count: int,
+        show_timer: bool = True,
+        show_progress: bool = True,
+    ) -> None:
         """Draw the top header info (timer + progress) sharing the same vertical position.
 
         Args:
@@ -245,7 +278,7 @@ class RavenTask:
         if show_progress and total_count is not None:
             self.draw_progress(answered_count, total_count)
 
-    def show_instruction(self, text: str, button_text: str = "继续"):
+    def show_instruction(self, text: str, button_text: str = "继续") -> None:
         """Display centered multi-line instruction with a styled button.
         In normal mode, the button becomes clickable only after self.instruction_button_delay seconds;
         in debug mode, it's clickable immediately (no countdown).
@@ -296,7 +329,7 @@ class RavenTask:
                     core.wait(0.01)
                 break
 
-    def draw_question(self, item_id: str, image_path: str | None):
+    def draw_question(self, item_id: str, image_path: Optional[str]) -> None:
         # Question area at top center (no border frame)
         q_w = self.L('question_box_w') * self.L('scale_question')
         q_h = self.L('question_box_h') * self.L('scale_question')
@@ -315,7 +348,7 @@ class RavenTask:
             txt = visual.TextStim(self.win, text=f"题目 {item_id}\n(图片占位)", pos=(0, self.L('question_box_y')), height=0.06, font=self.L('font_main'))
             txt.draw()
 
-    def create_option_rects(self):
+    def create_option_rects(self) -> list[Any]:
         """Build option rectangles for the current item.
 
         Returns:
@@ -348,7 +381,12 @@ class RavenTask:
                 rects.append(rect)
         return rects[:total_cells]
 
-    def draw_options(self, option_paths, rects, selected_index=None):
+    def draw_options(
+        self,
+        option_paths: list[str],
+        rects: list[Any],
+        selected_index: Optional[int] = None,
+    ) -> None:
         """绘制选项矩形与图片。
 
         Args:
@@ -385,7 +423,7 @@ class RavenTask:
                     placeholder = visual.TextStim(self.win, text=str(i+1), pos=rect.pos, height=0.05, color='gray', font=self.L('font_main'))
                     placeholder.draw()
 
-    def detect_click_on_rects(self, rects):
+    def detect_click_on_rects(self, rects: list[Any]) -> Optional[int]:
         """Detect click on any option rectangle.
 
         Returns:
@@ -402,7 +440,7 @@ class RavenTask:
                 return i
         return None
 
-    def _get_section_config(self, section: str):
+    def _get_section_config(self, section: str) -> dict[str, Any]:
         """Assemble runtime parameters for a test section."""
         if section == 'practice':
             # Practice: timer always visible, no red warning
@@ -432,7 +470,12 @@ class RavenTask:
             'timer_red_threshold': red_t,
         }
 
-    def _find_next_unanswered(self, items, answers_dict, current_index):
+    def _find_next_unanswered(
+        self,
+        items: list[dict[str, Any]],
+        answers_dict: dict[str, int],
+        current_index: int,
+    ) -> int:
         """Find the next unanswered item index.
 
         If on the last item, wraps around to check from the beginning.
@@ -461,7 +504,7 @@ class RavenTask:
 
         return next_index
 
-    def run_section(self, section: str):
+    def run_section(self, section: str) -> dict[str, float]:
         """Run a test section ('practice' or 'formal') with unified flow.
 
         Args:
@@ -569,7 +612,7 @@ class RavenTask:
 
         return last_times
 
-    def _draw_submit_button(self):
+    def _draw_submit_button(self) -> Any:
         """Draw the submit button and return the rect for click detection.
 
         Returns:
@@ -618,7 +661,13 @@ class RavenTask:
         if offset > max_off:
             offset = max_off
         return offset
-    def _build_navigation(self, items, answers_dict, current_index, offset):
+    def _build_navigation(
+        self,
+        items: list[dict[str, Any]],
+        answers_dict: dict[str, int],
+        current_index: int,
+        offset: int,
+    ) -> tuple[list[tuple[int, Any, Any]], Any, Any, Any, Any]:
         """Construct navigation stimuli (question number buttons + page arrows)."""
         n = len(items)
         start = offset
@@ -710,7 +759,15 @@ class RavenTask:
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
-    def _handle_navigation_click(self, nav_items, left_rect, right_rect, items, current_index, nav_offset):
+    def _handle_navigation_click(
+        self,
+        nav_items: list[tuple[int, Any, Any]],
+        left_rect: Any,
+        right_rect: Any,
+        items: list[dict[str, Any]],
+        current_index: int,
+        nav_offset: int,
+    ) -> tuple[Optional[str], int, int]:
         """Handle navigation clicks.
 
         Returns:
@@ -737,7 +794,7 @@ class RavenTask:
                     return 'jump', current_index, nav_offset
         return None, current_index, nav_offset
 
-    def save_and_exit(self):
+    def save_and_exit(self) -> None:
         """Save results and show completion message."""
         ts = datetime.now().strftime('%Y%m%d_%H%M%S')
         # Ensure data directory exists in frozen / portable builds
