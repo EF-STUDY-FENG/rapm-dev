@@ -56,12 +56,12 @@ def build_items_from_pattern(
 class RavenTask:
     def __init__(
         self,
-        win: Any,
         sequence: dict[str, Any],
         layout: dict[str, Any],
         participant_info: Optional[dict[str, Any]] = None,
     ) -> None:
-        self.win = win
+        # Window will always be created inside run(); keep attribute for methods
+        self.win = None
         self.sequence = {
             'practice': sequence['practice'],
             'formal': sequence['formal']
@@ -72,36 +72,34 @@ class RavenTask:
         self.practice_answers = {}
         self.formal_answers = {}
 
-        # Layout parameters are automatically merged by load_layout() in config_loader.py
-        # All default keys are guaranteed to be present, so no validation needed here
+        # Layout parameters are automatically merged by load_layout(); all defaults guaranteed
         self.layout = dict(layout)
 
-        # Debug mode: can be set in layout.json or by entering participant_id as '0'
+        # Debug mode: set via layout flag or participant_id == '0'
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = self.layout.get('debug_mode', False) or (pid == '0')
 
-        # Deadlines are set right before each section starts (after showing instructions)
+        # Deadlines (initialized later when sections start)
         self.practice_deadline = None
-        self.formal_deadline = None  # set when formal starts
+        self.formal_deadline = None
         self.max_visible_nav = 12
-        # Store timing data for saving
+        # Timing data
         self.practice_last_times = {}
         self.practice_start_time = None
         self.formal_last_times = {}
         self.formal_start_time = None
 
-        try:
-            answers_file = sequence.get('answers_file')
-        except AttributeError:
-            answers_file = None
+        # Load answers file if provided to populate item correctness
+        answers_file = sequence.get('answers_file') if isinstance(sequence, dict) else None
         if answers_file:
-            answers = load_answers(answers_file)
-            # practice
+            try:
+                answers = load_answers(answers_file)
+            except Exception:
+                answers = []
             p_count = int(self.practice.get('count', 0))
             p_pattern = self.practice.get('pattern')
             if p_count and p_pattern:
                 self.practice['items'] = build_items_from_pattern(p_pattern, p_count, answers, 0, 'P')
-            # formal (offset after practice)
             f_count = int(self.formal.get('count', 0))
             f_pattern = self.formal.get('pattern')
             if f_count and f_pattern:
@@ -114,46 +112,58 @@ class RavenTask:
             raise KeyError(f"layout.json 缺少必须的键: {key}")
         return self.layout[key]
     def run(self) -> None:
-        """Main entry point: run practice then formal test"""
-        # Show practice instructions
-        self.show_instruction(
-            "下面将进行的是瑞文高级推理测验\n"
-            "每道题目的上方是一张大图，大图的图案缺了一部分\n"
-            "请你从下面8个备选图形中找出大图的缺失部分，并选中它\n"
-            "在正式测试之前，有12道练习题目\n"
-            "限时10分钟",
-            button_text="开始练习"
-        )
-        # Set practice deadline now
-        self.practice_start_time = core.getTime()
-        if self.debug_mode:
-            # Debug: 10 seconds for practice
-            self.practice_deadline = self.practice_start_time + 10
+        """Run practice then formal test: always create & close window here."""
+        # Always create the window inside run(), ignoring any external provision
+        pid_str = str(self.participant_info.get('participant_id', '')).strip()
+        debug_active = bool(self.layout.get('debug_mode', False) or (pid_str == '0'))
+        if debug_active:
+            self.win = visual.Window(size=(1280, 800), color='black', units='norm')
         else:
-            self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
-        # Run practice section
-        self.practice_last_times = self.run_section('practice')
-        # Practice finished
-        # Show formal instructions
-        self.show_instruction(
-            "练习结束，下面将开始正式测试\n"
-            "正式测试一共有36道题目\n"
-            "题目按从易到难的顺序编排\n"
-            "限时40分钟\n"
-            "只剩最后10分钟时将倒计时提醒您",
-            button_text="开始测试"
-        )
-        # Set formal deadline (use debug time if in debug mode)
-        self.formal_start_time = core.getTime()
-        if self.debug_mode:
-            # Debug: 25 seconds (show timer at 20s, red at 10s)
-            self.formal_deadline = self.formal_start_time + 25
-        else:
-            self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
-        # Run formal section
-        self.formal_last_times = self.run_section('formal')
-        # Save results after both sections
-        self.save_and_exit()
+            self.win = visual.Window(fullscr=True, color='black', units='norm')
+
+        try:
+            # Practice instructions
+            self.show_instruction(
+                "下面将进行的是瑞文高级推理测验\n"
+                "每道题目的上方是一张大图，大图的图案缺了一部分\n"
+                "请你从下面8个备选图形中找出大图的缺失部分，并选中它\n"
+                "在正式测试之前，有12道练习题目\n"
+                "限时10分钟",
+                button_text="开始练习"
+            )
+            # Practice deadline
+            self.practice_start_time = core.getTime()
+            if self.debug_mode:
+                self.practice_deadline = self.practice_start_time + 10
+            else:
+                self.practice_deadline = self.practice_start_time + self.practice['time_limit_minutes'] * 60
+            self.practice_last_times = self.run_section('practice')
+
+            # Formal instructions
+            self.show_instruction(
+                "练习结束，下面将开始正式测试\n"
+                "正式测试一共有36道题目\n"
+                "题目按从易到难的顺序编排\n"
+                "限时40分钟\n"
+                "只剩最后10分钟时将倒计时提醒您",
+                button_text="开始测试"
+            )
+            # Formal deadline
+            self.formal_start_time = core.getTime()
+            if self.debug_mode:
+                self.formal_deadline = self.formal_start_time + 25
+            else:
+                self.formal_deadline = self.formal_start_time + self.formal['time_limit_minutes'] * 60
+            self.formal_last_times = self.run_section('formal')
+
+            # Save results
+            self.save_and_exit()
+        finally:
+            try:
+                if self.win is not None:
+                    self.win.close()
+            except Exception:
+                pass
 
     # ---------- Generic drawing helpers ----------
     def draw_timer(

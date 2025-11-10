@@ -2,8 +2,7 @@
 
 Responsibilities:
 1. Collect participant info (PsychoPy dialog)
-2. Create the display window (fullscreen normal, 1280x800 in debug)
-3. Load configs and delegate execution to `RavenTask`
+2. Load configs and delegate execution to `RavenTask`
 
 Summary:
 - Two phases: practice + formal. Content/counts/timing defined in `configs/sequence.json` and `layout.json`.
@@ -41,13 +40,11 @@ def get_participant_info():
         gui.Dlg(title='提示', labelButtonOK='确定').addText('需要填写被试编号 (participant_id)').show()
 
 
-def main():
-    """Main entry point for the Raven task."""
-    # Load configuration files
-    sequence = load_sequence()
-    layout = load_layout()
+def collect_participant_info() -> dict | None:
+    """Retry loop wrapper to obtain valid participant info or return None if user cancels.
 
-    # Retry loop for participant info
+    Shows a confirmation dialog if initial entry is cancelled or empty, allowing retry.
+    """
     from psychopy import gui
     while True:
         info = get_participant_info()
@@ -58,29 +55,23 @@ def main():
             if confirm.OK:
                 continue
             else:
-                return
-        break
+                return None
+        return info
 
-    # Determine debug flag before creating the window
-    pid_str = str((info or {}).get('participant_id', '')).strip()
-    debug_active = bool(layout.get('debug_mode', False) or (pid_str == '0'))
 
-    # In non-debug mode run fullscreen; in debug mode use a window for convenience
-    from psychopy import visual
-    if debug_active:
-        win = visual.Window(size=(1280, 800), color='black', units='norm')
-    else:
-        win = visual.Window(fullscr=True, color='black', units='norm')
+def main():
+    """Main entry point for the Raven task."""
+    # Load configuration files
+    sequence = load_sequence()
+    layout = load_layout()
+    # Collect participant info (with retry dialog)
+    info = collect_participant_info()
+    if info is None:
+        return
 
-    # Create and run the task
-    task = RavenTask(win, sequence, layout, participant_info=info)
-    try:
-        task.run()
-    finally:
-        # Clean up window
-        win.close()
-        # In frozen/packaged apps, core.quit() can cause logging errors
-        # Just let the program exit normally instead
+    # Create and run the task (RavenTask will create and close the window internally)
+    task = RavenTask(sequence, layout, participant_info=info)
+    task.run()
 
 
 if __name__ == '__main__':
