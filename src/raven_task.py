@@ -35,6 +35,33 @@ DATA_DIR = get_output_dir()
 # MODULE-LEVEL HELPERS
 # =============================================================================
 
+class SectionTiming:
+    """Encapsulates timing state for a test section.
+
+    Attributes:
+        start_time: Section start timestamp (from core.getTime())
+        deadline: Section timeout timestamp
+        last_times: Dict mapping item_id → answer timestamp
+    """
+    def __init__(self):
+        self.start_time: Optional[float] = None
+        self.deadline: Optional[float] = None
+        self.last_times: dict[str, float] = {}
+
+    def initialize(self, start_time: float, duration_seconds: float) -> None:
+        """Set start time and calculate deadline.
+
+        Args:
+            start_time: Current timestamp from core.getTime()
+            duration_seconds: Section duration in seconds
+        """
+        self.start_time = start_time
+        self.deadline = start_time + duration_seconds
+
+    def is_initialized(self) -> bool:
+        """Check if timing has been initialized."""
+        return self.start_time is not None and self.deadline is not None
+
 def build_items_from_pattern(
     pattern: str,
     count: int,
@@ -138,13 +165,9 @@ class RavenTask:
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = self.layout.get('debug_mode', False) or (pid == '0')
 
-        # Timing state (set dynamically in run_section)
-        self.practice_deadline = None
-        self.formal_deadline = None
-        self.practice_start_time = None
-        self.formal_start_time = None
-        self.practice_last_times = {}
-        self.formal_last_times = {}
+        # Timing management (initialized in run_section)
+        self.practice_timing = SectionTiming()
+        self.formal_timing = SectionTiming()
 
         # Navigation constants
         self.max_visible_nav = 12
@@ -205,10 +228,10 @@ class RavenTask:
 
         try:
             # Run practice (instruction shown inside run_section)
-            self.practice_last_times = self.run_section('practice')
+            self.run_section('practice')
 
             # Run formal (instruction shown inside run_section)
-            self.formal_last_times = self.run_section('formal')
+            self.run_section('formal')
 
             # Save and show completion message
             self.save_and_exit()
@@ -220,7 +243,7 @@ class RavenTask:
             except Exception:
                 pass
 
-    def run_section(self, section: str) -> dict[str, float]:
+    def run_section(self, section: str) -> None:
         """Execute a complete test section with instruction → test loop → timeout.
 
         Handles:
@@ -232,16 +255,14 @@ class RavenTask:
 
         Args:
             section: 'practice' or 'formal'
-
-        Returns:
-            Dict mapping item_id → answer timestamp
         """
-        # Get configuration for this section
+        # Get configuration and timing object for this section
         cfg = self._get_section_config(section)
+        timing = self.practice_timing if section == 'practice' else self.formal_timing
         items = cfg['config']['items']
         n_items = len(items)
         if n_items == 0:
-            return {}
+            return
 
         # Show instruction with button
         instruction_text = cfg['config'].get('instruction', '')
@@ -249,31 +270,21 @@ class RavenTask:
         if instruction_text:
             self.show_instruction(instruction_text, button_text=button_text)
 
-        # Initialize deadline and start time
+        # Initialize timing
         start_time = core.getTime()
-        if section == 'practice':
-            self.practice_start_time = start_time
-            if self.debug_mode:
-                self.practice_deadline = start_time + 10  # Debug: 10s
-            else:
-                self.practice_deadline = start_time + cfg['config']['time_limit_minutes'] * 60
-            deadline = self.practice_deadline
-        else:  # formal
-            self.formal_start_time = start_time
-            if self.debug_mode:
-                self.formal_deadline = start_time + 25  # Debug: 25s
-            else:
-                self.formal_deadline = start_time + cfg['config']['time_limit_minutes'] * 60
-            deadline = self.formal_deadline
+        if self.debug_mode:
+            duration = 10 if section == 'practice' else 25  # Debug: 10s/25s
+        else:
+            duration = cfg['config']['time_limit_minutes'] * 60
+        timing.initialize(start_time, duration)
 
         # Initialize state
         answers = cfg['answers']
         current_index = 0
         nav_offset = 0
-        last_times = {}
 
         # Main event loop
-        while core.getTime() < deadline:
+        while core.getTime() < timing.deadline:
             item = items[current_index]
 
             # Draw navigation bar (buttons + arrows)
@@ -292,7 +303,7 @@ class RavenTask:
 
             # Draw header (timer + progress)
             self.draw_header(
-                deadline=deadline,
+                deadline=timing.deadline,
                 show_threshold=cfg['timer_show_threshold'],
                 red_threshold=cfg['timer_red_threshold'],
                 answered_count=len(answers),
@@ -324,13 +335,13 @@ class RavenTask:
                 if any(mouse_global.getPressed()) and submit_btn.contains(mouse_global):
                     while any(mouse_global.getPressed()):
                         core.wait(0.01)
-                    return last_times
+                    return  # Exit section
 
             # Handle option click
             choice = self.detect_click_on_rects(rects)
             if choice is not None:
                 answers[item['id']] = choice + 1
-                last_times[item['id']] = core.getTime()
+                timing.last_times[item['id']] = core.getTime()
 
                 # Check completion
                 if len(answers) == n_items:
@@ -354,11 +365,9 @@ class RavenTask:
             if nav_action == 'page':
                 continue
 
-            # Timeout check
-            if core.getTime() >= deadline:
+            # Timeout check (redundant, but explicit exit)
+            if core.getTime() >= timing.deadline:
                 break
-
-        return last_times
 
     # -------------------------------------------------------------------------
     # UI DRAWING
@@ -978,13 +987,12 @@ class RavenTask:
             section: 'practice' or 'formal'
 
         Returns:
-            Config dict with keys: config, answers, deadline, show_submit, etc.
+            Config dict with keys: config, answers, show_submit, timer thresholds
         """
         if section == 'practice':
             return {
                 'config': self.practice,
                 'answers': self.practice_answers,
-                'deadline': self.practice_deadline,
                 'show_submit': False,
                 'auto_save_on_timeout': False,
                 'timer_show_threshold': None,
@@ -1002,7 +1010,6 @@ class RavenTask:
         return {
             'config': self.formal,
             'answers': self.formal_answers,
-            'deadline': self.formal_deadline,
             'show_submit': True,
             'auto_save_on_timeout': True,
             'timer_show_threshold': show_t,
@@ -1104,11 +1111,11 @@ class RavenTask:
                     ])
 
             write_section('practice', self.practice.get('items', []),
-                         self.practice_answers, self.practice_last_times,
-                         self.practice_start_time)
+                         self.practice_answers, self.practice_timing.last_times,
+                         self.practice_timing.start_time)
             write_section('formal', self.formal.get('items', []),
-                         self.formal_answers, self.formal_last_times,
-                         self.formal_start_time)
+                         self.formal_answers, self.formal_timing.last_times,
+                         self.formal_timing.start_time)
 
         # Save JSON metadata
         meta = {
