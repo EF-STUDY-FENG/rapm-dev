@@ -113,10 +113,8 @@ class RavenTask:
         return self.layout[key]
     def run(self) -> None:
         """Run practice then formal test: always create & close window here."""
-        # Always create the window inside run(), ignoring any external provision
-        pid_str = str(self.participant_info.get('participant_id', '')).strip()
-        debug_active = bool(self.layout.get('debug_mode', False) or (pid_str == '0'))
-        if debug_active:
+        # Always create the window inside run()
+        if self.debug_mode:
             self.win = visual.Window(size=(1280, 800), color='black', units='norm')
         else:
             self.win = visual.Window(fullscr=True, color='black', units='norm')
