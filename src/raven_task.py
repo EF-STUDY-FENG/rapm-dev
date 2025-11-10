@@ -22,7 +22,6 @@ from psychopy import visual, event, core
 from ui.renderer import Renderer
 from ui.navigator import Navigator
 from section_runner import SectionRunner
-from config_loader import get_output_dir
 from path_utils import (
     resolve_path,
     file_exists_nonempty,
@@ -30,8 +29,7 @@ from path_utils import (
     fitted_size_keep_aspect,
 )
 
-# Output directory for results
-DATA_DIR = get_output_dir()
+from results_writer import ResultsWriter
 
 
 # =============================================================================
@@ -250,90 +248,20 @@ class RavenTask:
     # -------------------------------------------------------------------------
 
     def _save_and_exit(self) -> None:
-        """Save results to CSV and JSON, then show completion message.
-
-        Creates two files in DATA_DIR:
-        - raven_results_TIMESTAMP.csv: Detailed trial-by-trial data
-        - raven_session_TIMESTAMP.json: Session metadata and summary stats
-        """
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        os.makedirs(DATA_DIR, exist_ok=True)
-
-        # Save CSV
-        out_path = os.path.join(DATA_DIR, f'raven_results_{ts}.csv')
-        pid = self.participant_info.get('participant_id', '')
-        practice_correct = 0
-        formal_correct = 0
-
-        with open(out_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'participant_id', 'section', 'item_id', 'answer',
-                'correct', 'is_correct', 'time'
-            ])
-
-            def write_section(section, items, answers, last_times, start_time):
-                nonlocal practice_correct, formal_correct
-                for item in items:
-                    iid = item.get('id')
-                    ans = answers.get(iid)
-                    correct = item.get('correct')
-                    is_correct = (ans == correct) if (ans is not None and correct is not None) else None
-
-                    if is_correct:
-                        if section == 'practice':
-                            practice_correct += 1
-                        else:
-                            formal_correct += 1
-
-                    t2 = last_times.get(iid, None)
-                    t0 = start_time
-                    time_used = ''
-                    if t0 is not None and t2 is not None:
-                        time_used = f"{t2-t0:.3f}"
-
-                    writer.writerow([
-                        pid, section, iid,
-                        ans if ans is not None else '',
-                        correct if correct is not None else '',
-                        '1' if is_correct else ('0' if is_correct is not None else ''),
-                        time_used
-                    ])
-
-            write_section('practice', self.practice.get('items', []),
-                         self.practice_answers, self.practice_timing.last_times,
-                         self.practice_timing.start_time)
-            write_section('formal', self.formal.get('items', []),
-                         self.formal_answers, self.formal_timing.last_times,
-                         self.formal_timing.start_time)
-
-        # Save JSON metadata
-        meta = {
-            'participant': self.participant_info,
-            'time_created': datetime.now().isoformat(timespec='seconds'),
-            'practice': {
-                'set': self.practice.get('set'),
-                'time_limit_minutes': self.practice.get('time_limit_minutes'),
-                'n_items': len(self.practice.get('items', [])),
-                'correct_count': practice_correct
-            },
-            'formal': {
-                'set': self.formal.get('set'),
-                'time_limit_minutes': self.formal.get('time_limit_minutes'),
-                'n_items': len(self.formal.get('items', [])),
-                'correct_count': formal_correct
-            },
-            'total_correct': practice_correct + formal_correct,
-            'total_items': len(self.practice.get('items', [])) + len(self.formal.get('items', []))
-        }
-        meta_path = os.path.join(DATA_DIR, f'raven_session_{ts}.json')
-        try:
-            with open(meta_path, 'w', encoding='utf-8') as mf:
-                json.dump(meta, mf, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-
-        # Show completion message
+        """Delegate persistence to ResultsWriter then show completion message."""
+        # Lazy instantiate writer (can be injected later if needed)
+        if not hasattr(self, 'results_writer'):
+            self.results_writer = ResultsWriter()
+        self.results_writer.save(
+            self.participant_info,
+            self.practice,
+            self.formal,
+            self.practice_answers,
+            self.formal_answers,
+            self.practice_timing,
+            self.formal_timing,
+        )
+        # Completion splash
         lines = ['作答完成！', '感谢您的作答！']
         colors = ['green', 'white']
         for _ in range(300):  # ~5 seconds
