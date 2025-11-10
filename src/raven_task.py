@@ -13,99 +13,25 @@ Architecture:
     - RavenTask: Main experiment class with organized method groups
 """
 
-from typing import Any, Optional, Sequence
-import json
-import os
-import csv
-from datetime import datetime
-from psychopy import visual, event, core
+from typing import Any, Optional
+from psychopy import visual
 from ui.renderer import Renderer
 from ui.navigator import Navigator
 from section_runner import SectionRunner
 from path_utils import (
-    resolve_path,
-    file_exists_nonempty,
     load_answers,
-    fitted_size_keep_aspect,
 )
 
 from results_writer import ResultsWriter
+from models import SectionTiming
+from utils import build_items_from_pattern
 
 
 # =============================================================================
 # MODULE-LEVEL HELPERS
 # =============================================================================
 
-class SectionTiming:
-    """Encapsulates timing state for a test section.
-
-    Attributes:
-        start_time: Section start timestamp (from core.getTime())
-        deadline: Section timeout timestamp
-        last_times: Dict mapping item_id → answer timestamp
-    """
-    def __init__(self):
-        self.start_time: Optional[float] = None
-        self.deadline: Optional[float] = None
-        self.last_times: dict[str, float] = {}
-
-    def initialize(self, start_time: float, duration_seconds: float) -> None:
-        """Set start time and calculate deadline.
-
-        Args:
-            start_time: Current timestamp from core.getTime()
-            duration_seconds: Section duration in seconds
-        """
-        self.start_time = start_time
-        self.deadline = start_time + duration_seconds
-
-    def is_initialized(self) -> bool:
-        """Check if timing has been initialized."""
-        return self.start_time is not None and self.deadline is not None
-
-def build_items_from_pattern(
-    pattern: str,
-    count: int,
-    answers: list[int],
-    start_index: int,
-    section_prefix: str,
-) -> list[dict]:
-    """Build item list from file pattern template.
-
-    Generates item dictionaries by expanding a pattern template with indices.
-    Example pattern: 'stimuli/images/RAPM_t{XX}-{Y}.jpg'
-    - {XX}: zero-padded item number (01, 02, ...)
-    - {Y}: 0 for question, 1-8 for options
-
-    Args:
-        pattern: Path template with {XX} and {Y} placeholders
-        count: Number of items to generate
-        answers: List of correct answer indices
-        start_index: Offset for answer lookup
-        section_prefix: Prefix for item IDs ('P' or 'F')
-
-    Returns:
-        List of item dicts with id, question_image, options, correct
-    """
-    items: list[dict] = []
-    for i in range(1, count + 1):
-        XX = f"{i:02d}"
-        q_path = pattern.replace('{XX}', XX).replace('{Y}', '0')
-        option_paths = [
-            pattern.replace('{XX}', XX).replace('{Y}', str(opt))
-            for opt in range(1, 9)
-        ]
-        correct = None
-        idx = start_index + (i - 1)
-        if 0 <= idx < len(answers):
-            correct = answers[idx]
-        items.append({
-            'id': f"{section_prefix}{XX}",
-            'question_image': q_path,
-            'options': option_paths,
-            'correct': correct
-        })
-    return items
+ 
 
 
 # =============================================================================
