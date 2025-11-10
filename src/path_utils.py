@@ -9,10 +9,6 @@ This module provides intelligent path resolution with support for:
 """
 import os
 import sys
-try:
-    from PIL import Image as PILImage
-except Exception:
-    PILImage = None
 
 from config_loader import BASE_DIR
 
@@ -145,7 +141,9 @@ def get_image_pixel_size(path: str) -> tuple[int, int] | None:
     Returns:
         Tuple of (width, height) in pixels, or None if PIL not available or error
     """
-    if PILImage is None:
+    try:
+        from PIL import Image as PILImage  # lazy import
+    except Exception:
         return None
     abs_path = resolve_path(path)
     if abs_path in _IMG_SIZE_CACHE:

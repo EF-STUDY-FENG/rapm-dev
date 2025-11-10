@@ -6,12 +6,12 @@ This module contains the core experiment logic:
 - RavenTask: Main experiment class handling practice and formal test sections
 - build_items_from_pattern: Helper function to build item lists from patterns
 """
-from psychopy import visual, event, core
 from typing import Any, Optional, Sequence
 import json
 import os
 import csv
 from datetime import datetime
+from psychopy import visual, event, core
 from config_loader import get_output_dir
 from path_utils import (
     resolve_path,
@@ -317,7 +317,7 @@ class RavenTask:
                 outline_col = self.L('button_outline_disabled')
 
             btn_rect = visual.Rect(self.win, width=btn_w, height=btn_h, pos=btn_pos,
-                                    lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
+                                   lineColor=outline_col, fillColor=fill_col, lineWidth=line_w)
             remaining = int(max(0, delay - elapsed))
             label_text = button_text if clickable else f"{button_text} ({remaining}s)"
             btn_label = visual.TextStim(self.win, text=label_text, pos=btn_pos, height=label_h, color='white', font=self.L('font_main'))
@@ -362,7 +362,7 @@ class RavenTask:
         rect_h = self.L('option_rect_h') * self.L('scale_option')
         center_y = self.L('option_grid_center_y')
 
-        rects: list[visual.Rect] = []
+        rects: list[Any] = []
         total_cells = cols * rows
         for r in range(rows):
             for c in range(cols):
@@ -515,7 +515,7 @@ class RavenTask:
         items = cfg['config']['items']
         n_items = len(items)
         if n_items == 0:
-            return
+            return {}
 
         answers = cfg['answers']
         deadline = cfg['deadline']
@@ -569,7 +569,7 @@ class RavenTask:
                     while any(mouse_global.getPressed()):
                         core.wait(0.01)
                     self.formal_last_times = last_times
-                        # Return to let run() handle saving
+                    # Return to let run() handle saving
                     return last_times
 
             # Handle option click

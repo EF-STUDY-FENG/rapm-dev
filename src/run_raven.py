@@ -1,26 +1,17 @@
-"""Raven Advanced Progressive Matrices – Entry Point
+"""Raven Advanced Progressive Matrices – Application entry point.
 
-This module is the application entry for the Raven APM task. It is responsible for:
-- Collecting participant information via a PsychoPy dialog
-- Initializing the display window (fullscreen in normal mode, 1280×800 window in debug mode)
-- Loading configuration and delegating the experiment flow to `raven_task.RavenTask`
+Responsibilities:
+1. Collect participant info (PsychoPy dialog)
+2. Create the display window (fullscreen normal, 1280x800 in debug)
+3. Load configs and delegate execution to `RavenTask`
 
-Current behavior (reflects the latest implementation):
-- Two sections: Practice (Set I) and Formal (Set II). The section content, item counts and timing are defined in `configs/sequence.json`.
-- Navigation bar: a clickable item-number strip is shown at the top in both sections, allowing direct jumps between items.
-- Timer and progress in the header: always drawn in a unified header line. In practice the timer is always visible; in formal the timer is shown only when the remaining time is below a configurable threshold (`layout.json`). The timer turns red under a configurable warning threshold.
-- Practice: selecting an option records the answer and typically advances to the next item; the section ends when all items are answered or the time limit is reached (no submit button in practice).
-- Formal: after all items are answered, a persistent "Submit" button appears at the bottom; data is saved only after the user clicks it. If time runs out, answers are auto-saved.
-- Data output: on submit (or timeout in formal), results are written to the `data/` folder as a per-trial CSV and a session-level JSON summary.
+Summary:
+- Two phases: practice + formal. Content/counts/timing defined in `configs/sequence.json` and `layout.json`.
+- Navigation, timer and progress logic live in `raven_task.RavenTask`.
+- Debug mode: participant_id '0' or layout flag; shortened timing; windowed mode.
 
-Debug mode:
-- Enable by setting `"debug_mode": true` in `configs/layout.json`, or by entering participant_id `0` in the dialog.
-- Shortened timing: Practice 10 s, Formal 25 s. In formal, the timer becomes visible/red at 20 s/10 s respectively. The window runs in 1280×800 for convenience.
-
-See `config_loader.py` and `path_utils.py` for configuration loading and robust resource resolution suitable for both development and PyInstaller builds.
-Dependencies: PsychoPy.
+See `raven_task.py` for detailed flow and data saving logic.
 """
-from psychopy import visual, gui
 from config_loader import load_sequence, load_layout
 from raven_task import RavenTask
 
@@ -31,6 +22,7 @@ def get_participant_info():
     Returns:
         dict | None: Participant info dict if valid, None if cancelled
     """
+    from psychopy import gui
     default = {
         'participant_id': '',
         'age': '',
@@ -56,6 +48,7 @@ def main():
     layout = load_layout()
 
     # Retry loop for participant info
+    from psychopy import gui
     while True:
         info = get_participant_info()
         if info is None:
@@ -73,6 +66,7 @@ def main():
     debug_active = bool(layout.get('debug_mode', False) or (pid_str == '0'))
 
     # In non-debug mode run fullscreen; in debug mode use a window for convenience
+    from psychopy import visual
     if debug_active:
         win = visual.Window(size=(1280, 800), color='black', units='norm')
     else:
