@@ -121,16 +121,22 @@ class RavenTask:
     4. Results persistence (CSV + JSON metadata)
     5. Window cleanup
 
+    Public API:
+    - run(): Execute the full task lifecycle (create window → run sections → save → cleanup)
+
     Key features:
     - Config-driven instructions and timing
     - Debug mode for rapid testing
     - Navigation with pagination
     - Auto-advance to next unanswered item
     - Submit button in formal section
+
+    Notes:
+    - All non-public methods are internal and prefixed with an underscore (_).
     """
 
     # -------------------------------------------------------------------------
-    # LIFECYCLE & CORE
+    # LIFECYCLE & CORE (construction and section orchestration)
     # -------------------------------------------------------------------------
 
     def __init__(
@@ -194,6 +200,10 @@ class RavenTask:
                     f_pattern, f_count, answers, p_count, 'F'
                 )
 
+    # -------------------------------------------------------------------------
+    # PUBLIC API
+    # -------------------------------------------------------------------------
+
     def run(self) -> None:
         """Main entry point: create window → run sections → save → cleanup."""
         # Create window based on debug mode
@@ -211,14 +221,14 @@ class RavenTask:
             )
 
         try:
-            # Run practice (instruction shown inside run_section)
-            self.run_section('practice')
+            # Run practice (instruction shown inside _run_section)
+            self._run_section('practice')
 
-            # Run formal (instruction shown inside run_section)
-            self.run_section('formal')
+            # Run formal (instruction shown inside _run_section)
+            self._run_section('formal')
 
             # Save and show completion message
-            self.save_and_exit()
+            self._save_and_exit()
         finally:
             # Always cleanup window
             try:
@@ -227,7 +237,7 @@ class RavenTask:
             except Exception:
                 pass
 
-    def run_section(self, section: str) -> None:
+    def _run_section(self, section: str) -> None:
         """Execute a complete test section with instruction → test loop → timeout.
 
         Handles:
@@ -240,30 +250,43 @@ class RavenTask:
         Args:
             section: 'practice' or 'formal'
         """
-        # Get configuration and timing object for this section
-        cfg = self._get_section_config(section)
+        # Resolve configuration and timing object for this section
         timing = self.practice_timing if section == 'practice' else self.formal_timing
-        items = cfg['config']['items']
+        conf = self.practice if section == 'practice' else self.formal
+        items = conf['items']
         n_items = len(items)
         if n_items == 0:
             return
 
         # Show instruction with button
-        instruction_text = cfg['config'].get('instruction', '')
-        button_text = cfg['config'].get('button_text', '继续')
+        instruction_text = conf.get('instruction', '')
+        button_text = conf.get('button_text', '继续')
         if instruction_text:
-            self.show_instruction(instruction_text, button_text=button_text)
+            self._show_instruction(instruction_text, button_text=button_text)
 
         # Initialize timing
         start_time = core.getTime()
         if self.debug_mode:
             duration = 10 if section == 'practice' else 25  # Debug: 10s/25s
         else:
-            duration = cfg['config']['time_limit_minutes'] * 60
+            duration = conf['time_limit_minutes'] * 60
         timing.initialize(start_time, duration)
 
         # Initialize state
-        answers = cfg['answers']
+        answers = self.practice_answers if section == 'practice' else self.formal_answers
+        # Timer thresholds and submit flag
+        if section == 'practice':
+            show_threshold = None
+            red_threshold = None
+            show_submit = False
+        else:
+            if self.debug_mode:
+                show_threshold = self.layout['debug_timer_show_threshold']
+                red_threshold = self.layout['debug_timer_red_threshold']
+            else:
+                show_threshold = self.layout['formal_timer_show_threshold']
+                red_threshold = self.layout['timer_red_threshold']
+            show_submit = True
         current_index = 0
         nav_offset = 0
 
@@ -286,10 +309,10 @@ class RavenTask:
                 r_txt.draw()
 
             # Draw header (timer + progress)
-            self.draw_header(
+            self._draw_header(
                 deadline=timing.deadline,
-                show_threshold=cfg['timer_show_threshold'],
-                red_threshold=cfg['timer_red_threshold'],
+                show_threshold=show_threshold,
+                red_threshold=red_threshold,
                 answered_count=len(answers),
                 total_count=n_items,
                 show_timer=True,
@@ -297,10 +320,10 @@ class RavenTask:
             )
 
             # Draw question and options
-            self.draw_question(item['id'], item.get('question_image'))
-            rects = self.create_option_rects()
+            self._draw_question(item['id'], item.get('question_image'))
+            rects = self._create_option_rects()
             prev_choice = answers.get(item['id'])
-            self.draw_options(
+            self._draw_options(
                 item.get('options', []),
                 rects,
                 selected_index=(prev_choice - 1) if prev_choice else None
@@ -308,7 +331,7 @@ class RavenTask:
 
             # Draw submit button (formal only, when all answered)
             submit_btn = None
-            if cfg['show_submit'] and len(answers) == n_items:
+            if show_submit and len(answers) == n_items:
                 submit_btn = self._draw_submit_button()
 
             self.win.flip()
@@ -322,7 +345,7 @@ class RavenTask:
                     return  # Exit section
 
             # Handle option click
-            choice = self.detect_click_on_rects(rects)
+            choice = self._detect_click_on_rects(rects)
             if choice is not None:
                 answers[item['id']] = choice + 1
                 timing.last_times[item['id']] = core.getTime()
@@ -357,7 +380,7 @@ class RavenTask:
     # UI DRAWING
     # -------------------------------------------------------------------------
 
-    def show_instruction(self, text: str, button_text: str = "继续") -> None:
+    def _show_instruction(self, text: str, button_text: str = "继续") -> None:
         """Display instruction screen with countdown button.
 
         In normal mode, button is disabled for instruction_button_delay seconds.
@@ -390,7 +413,7 @@ class RavenTask:
                 clickable = True
 
             # Draw instruction text
-            self.draw_multiline(
+            self._draw_multiline(
                 lines,
                 center_y=center_y,
                 line_height=line_h,
@@ -442,7 +465,7 @@ class RavenTask:
                     core.wait(0.01)
                 break
 
-    def draw_header(
+    def _draw_header(
         self,
         deadline: Optional[float],
         show_threshold: Optional[int],
@@ -464,11 +487,11 @@ class RavenTask:
             show_progress: Whether to show progress
         """
         if show_timer and deadline is not None:
-            self.draw_timer(deadline, show_threshold, red_threshold)
+            self._draw_timer(deadline, show_threshold, red_threshold)
         if show_progress and total_count is not None:
-            self.draw_progress(answered_count, total_count)
+            self._draw_progress(answered_count, total_count)
 
-    def draw_timer(
+    def _draw_timer(
         self,
         deadline: Optional[float],
         show_threshold: Optional[int] = None,
@@ -504,7 +527,7 @@ class RavenTask:
         )
         timerStim.draw()
 
-    def draw_progress(self, answered_count: int, total_count: int) -> None:
+    def _draw_progress(self, answered_count: int, total_count: int) -> None:
         """Draw progress indicator (e.g., '已答 12 / 总数 36').
 
         Shows in green when all answered, white otherwise.
@@ -537,7 +560,7 @@ class RavenTask:
             pass
         progStim.draw()
 
-    def draw_multiline(
+    def _draw_multiline(
         self,
         lines: Sequence[str],
         center_y: float,
@@ -585,7 +608,7 @@ class RavenTask:
                 pass
             stim.draw()
 
-    def draw_question(self, item_id: str, image_path: Optional[str]) -> None:
+    def _draw_question(self, item_id: str, image_path: Optional[str]) -> None:
         """Draw question image at top center.
 
         Args:
@@ -626,7 +649,7 @@ class RavenTask:
             )
             txt.draw()
 
-    def create_option_rects(self) -> list[Any]:
+    def _create_option_rects(self) -> list[Any]:
         """Create option rectangles in a grid layout.
 
         Returns:
@@ -658,7 +681,7 @@ class RavenTask:
                 rects.append(rect)
         return rects[:total_cells]
 
-    def draw_options(
+    def _draw_options(
         self,
         option_paths: list[str],
         rects: list[Any],
@@ -751,7 +774,7 @@ class RavenTask:
     # EVENT HANDLING
     # -------------------------------------------------------------------------
 
-    def detect_click_on_rects(self, rects: list[Any]) -> Optional[int]:
+    def _detect_click_on_rects(self, rects: list[Any]) -> Optional[int]:
         """Detect mouse click on any rectangle.
 
         Args:
@@ -960,46 +983,6 @@ class RavenTask:
             offset = max_off
         return offset
 
-    # -------------------------------------------------------------------------
-    # SECTION CONFIGURATION
-    # -------------------------------------------------------------------------
-
-    def _get_section_config(self, section: str) -> dict[str, Any]:
-        """Build runtime config dictionary for a section.
-
-        Args:
-            section: 'practice' or 'formal'
-
-        Returns:
-            Config dict with keys: config, answers, show_submit, timer thresholds
-        """
-        if section == 'practice':
-            return {
-                'config': self.practice,
-                'answers': self.practice_answers,
-                'show_submit': False,
-                'auto_save_on_timeout': False,
-                'timer_show_threshold': None,
-                'timer_red_threshold': None,
-            }
-
-        # Formal section
-        if self.debug_mode:
-            show_t = self.layout['debug_timer_show_threshold']
-            red_t = self.layout['debug_timer_red_threshold']
-        else:
-            show_t = self.layout['formal_timer_show_threshold']
-            red_t = self.layout['timer_red_threshold']
-
-        return {
-            'config': self.formal,
-            'answers': self.formal_answers,
-            'show_submit': True,
-            'auto_save_on_timeout': True,
-            'timer_show_threshold': show_t,
-            'timer_red_threshold': red_t,
-        }
-
     def _find_next_unanswered(
         self,
         items: list[dict[str, Any]],
@@ -1043,7 +1026,7 @@ class RavenTask:
     # DATA PERSISTENCE
     # -------------------------------------------------------------------------
 
-    def save_and_exit(self) -> None:
+    def _save_and_exit(self) -> None:
         """Save results to CSV and JSON, then show completion message.
 
         Creates two files in DATA_DIR:
@@ -1131,7 +1114,7 @@ class RavenTask:
         lines = ['作答完成！', '感谢您的作答！']
         colors = ['green', 'white']
         for _ in range(300):  # ~5 seconds
-            self.draw_multiline(
+            self._draw_multiline(
                 lines,
                 center_y=0.05,
                 line_height=0.065,
