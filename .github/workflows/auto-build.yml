@@ -39,7 +39,7 @@ jobs:
       - name: Run Tests
         run: |
           # Syntax check
-          conda run -n psychopy-dev python -m py_compile scripts/raven_task.py
+          conda run -n psychopy-dev python -m py_compile scripts/run_raven.py
           Write-Host "✓ Syntax check passed" -ForegroundColor Green
 
           # Run unit tests
@@ -73,7 +73,7 @@ jobs:
       - name: Run Tests
         run: |
           # Syntax check
-          conda run -n psychopy-dev python -m py_compile scripts/raven_task.py
+          conda run -n psychopy-dev python -m py_compile scripts/run_raven.py
           Write-Host "✓ Syntax check passed" -ForegroundColor Green
 
           # Run unit tests

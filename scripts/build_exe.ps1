@@ -38,7 +38,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Push-Location $root
 
 # Paths
-$entry = Join-Path $root "scripts/raven_task.py"
+$entry = Join-Path $root "scripts/run_raven.py"
 $dist = Join-Path $root "dist"
 $build = Join-Path $root "build"
 

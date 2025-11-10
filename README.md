@@ -103,7 +103,7 @@ conda activate psychopy-dev
 运行实验（练习集 + 正式集）：
 
 ```bash
-python scripts/raven_task.py
+python scripts/run_raven.py
 ```
 
 ### 显示模式
