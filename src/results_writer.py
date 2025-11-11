@@ -1,10 +1,13 @@
-from __future__ import annotations
 """ResultsWriter: handles persistence of Raven task results (CSV + JSON)."""
-from typing import Any, Dict
-from rapm_types import SectionConfig, ParticipantInfo
-import os, csv, json
+from __future__ import annotations
+
+import csv
+import json
+import os
 from datetime import datetime
+
 from config_loader import get_output_dir
+from rapm_types import ParticipantInfo, SectionConfig
 
 DATA_DIR = get_output_dir()
 
@@ -14,11 +17,11 @@ class ResultsWriter:
 
     def save(
         self,
-    participant_info: ParticipantInfo,
-    practice_conf: SectionConfig,
-    formal_conf: SectionConfig,
-        practice_answers: Dict[str, int],
-        formal_answers: Dict[str, int],
+        participant_info: ParticipantInfo,
+        practice_conf: SectionConfig,
+        formal_conf: SectionConfig,
+        practice_answers: dict[str, int],
+        formal_answers: dict[str, int],
         practice_timing,
         formal_timing,
     ) -> tuple[str, str]:
@@ -61,9 +64,25 @@ class ResultsWriter:
 
         with open(csv_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['participant_id','section','item_id','answer','correct','is_correct','time'])
-            write_section(writer, 'practice', practice_conf.get('items', []), practice_answers, practice_timing.last_times, practice_timing.start_time)
-            write_section(writer, 'formal', formal_conf.get('items', []), formal_answers, formal_timing.last_times, formal_timing.start_time)
+            writer.writerow([
+                'participant_id', 'section', 'item_id', 'answer', 'correct', 'is_correct', 'time'
+            ])
+            write_section(
+                writer,
+                'practice',
+                practice_conf.get('items', []),
+                practice_answers,
+                practice_timing.last_times,
+                practice_timing.start_time,
+            )
+            write_section(
+                writer,
+                'formal',
+                formal_conf.get('items', []),
+                formal_answers,
+                formal_timing.last_times,
+                formal_timing.start_time,
+            )
 
         meta = {
             'participant': participant_info,
@@ -73,14 +92,22 @@ class ResultsWriter:
                 'time_limit_minutes': practice_conf.get('time_limit_minutes'),
                 'n_items': len(practice_conf.get('items', [])),
                 'correct_count': practice_correct,
-                'remaining_seconds_at_save': getattr(practice_timing, 'remaining_seconds', lambda: None)()
+                'remaining_seconds_at_save': getattr(
+                    practice_timing,
+                    'remaining_seconds',
+                    lambda: None,
+                )()
             },
             'formal': {
                 'set': formal_conf.get('set'),
                 'time_limit_minutes': formal_conf.get('time_limit_minutes'),
                 'n_items': len(formal_conf.get('items', [])),
                 'correct_count': formal_correct,
-                'remaining_seconds_at_save': getattr(formal_timing, 'remaining_seconds', lambda: None)()
+                'remaining_seconds_at_save': getattr(
+                    formal_timing,
+                    'remaining_seconds',
+                    lambda: None,
+                )()
             },
             'total_correct': practice_correct + formal_correct,
             'total_items': len(practice_conf.get('items', [])) + len(formal_conf.get('items', []))

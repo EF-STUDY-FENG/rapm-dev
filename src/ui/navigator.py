@@ -1,8 +1,12 @@
-from __future__ import annotations
 """Navigator component: navigation bar construction and interactions."""
-from typing import Any, Optional, List
+from __future__ import annotations
+
+from typing import Any
+
+from psychopy import core, event, visual
+
 from rapm_types import LayoutConfig
-from psychopy import visual, event, core
+
 
 class Navigator:
     def __init__(self, win: visual.Window, layout: LayoutConfig, max_visible_nav: int = 12):
@@ -12,7 +16,7 @@ class Navigator:
 
     def build_navigation(
         self,
-        items: List[dict],
+        items: list[dict],
         answers_dict: dict[str, int],
         current_index: int,
         offset: int,
@@ -34,7 +38,10 @@ class Navigator:
         x_left = x_left_edge + arrow_w + gap
         x_right = x_right_edge - arrow_w - gap
         span = x_right - x_left
-        xs = [x_left + i * span / (count - 1) for i in range(count)] if count > 1 else [(x_left + x_right) / 2.0]
+        if count > 1:
+            xs = [x_left + i * span / (count - 1) for i in range(count)]
+        else:
+            xs = [(x_left + x_right) / 2.0]
         item_w = self.layout['nav_item_w']
         item_h = self.layout['nav_item_h']
         label_h = self.layout['nav_label_height']
@@ -87,7 +94,7 @@ class Navigator:
         items: list[dict[str, Any]],
         current_index: int,
         nav_offset: int,
-    ) -> tuple[Optional[str], int, int]:
+    ) -> tuple[str | None, int, int]:
         mouse = event.Mouse(win=self.win)
         if any(mouse.getPressed()):
             if left_rect and left_rect.contains(mouse):
@@ -121,7 +128,12 @@ class Navigator:
             offset = max_off
         return offset
 
-    def find_next_unanswered(self, items: list[dict[str, Any]], answers_dict: dict[str, int], current_index: int) -> int:
+    def find_next_unanswered(
+        self,
+        items: list[dict[str, Any]],
+        answers_dict: dict[str, int],
+        current_index: int,
+    ) -> int:
         n_items = len(items)
         next_index = current_index
         if current_index == n_items - 1:

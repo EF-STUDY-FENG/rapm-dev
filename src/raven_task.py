@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Raven Advanced Progressive Matrices Task - Core Module
 
 This module implements the complete RAPM experiment flow with:
@@ -12,19 +10,20 @@ Architecture:
     - build_items_from_pattern(): Module-level helper for item generation
     - RavenTask: Main experiment class with organized method groups
 """
+from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
+
 from psychopy import visual
-from ui.renderer import Renderer
-from ui.navigator import Navigator
-from section_runner import SectionRunner
-from path_utils import load_answers
 
-from results_writer import ResultsWriter
 from models import SectionTiming
+from path_utils import load_answers
+from rapm_types import LayoutConfig, ParticipantInfo, SectionConfig
+from results_writer import ResultsWriter
+from section_runner import SectionRunner
+from ui.navigator import Navigator
+from ui.renderer import Renderer
 from utils import build_items_from_pattern
-from rapm_types import SectionConfig, ParticipantInfo, LayoutConfig, SequenceConfig
-
 
 # =============================================================================
 # MODULE-LEVEL HELPERS
@@ -69,7 +68,7 @@ class RavenTask:
         self,
         sequence: dict[str, Any],
         layout: LayoutConfig,
-        participant_info: Optional[ParticipantInfo] = None,
+    participant_info: ParticipantInfo | None = None,
     ) -> None:
         """Initialize task with configuration and participant info.
 
@@ -152,11 +151,27 @@ class RavenTask:
             # Initialize UI helpers tied to the created window
             self.renderer = Renderer(self.win, self.layout)
             self.navigator = Navigator(self.win, self.layout, max_visible_nav=self.max_visible_nav)
-            self.section_runner = SectionRunner(self.win, self.renderer, self.navigator, self.layout, self.debug_mode)
-            self.section_runner.run_section('practice', self.practice, self.practice_answers, self.practice_timing)
+            self.section_runner = SectionRunner(
+                self.win,
+                self.renderer,
+                self.navigator,
+                self.layout,
+                self.debug_mode,
+            )
+            self.section_runner.run_section(
+                'practice',
+                self.practice,
+                self.practice_answers,
+                self.practice_timing,
+            )
 
             # Run formal (instruction shown inside SectionRunner)
-            self.section_runner.run_section('formal', self.formal, self.formal_answers, self.formal_timing)
+            self.section_runner.run_section(
+                'formal',
+                self.formal,
+                self.formal_answers,
+                self.formal_timing,
+            )
 
             # Save and show completion message
             self._save_and_exit()

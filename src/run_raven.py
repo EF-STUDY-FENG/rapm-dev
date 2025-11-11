@@ -17,9 +17,8 @@ Debug mode:
 - Triggered by layout.json flag or participant_id == '0'
 - Results in: windowed display, shortened timings, immediate buttons
 """
-from config_loader import load_sequence, load_layout
+from config_loader import load_layout, load_sequence
 from raven_task import RavenTask
-
 
 # =============================================================================
 # PARTICIPANT INFO COLLECTION

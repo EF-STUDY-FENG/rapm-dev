@@ -1,6 +1,6 @@
-from __future__ import annotations
 """Data models for RAPM experiment."""
-from typing import Optional
+from __future__ import annotations
+
 # Lightweight time provider to avoid hard dependency on PsychoPy for pure logic/tests
 try:
     from psychopy import core as _core  # type: ignore
@@ -20,8 +20,8 @@ class SectionTiming:
         last_times: Dict mapping item_id → answer timestamp
     """
     def __init__(self):
-        self.start_time: Optional[float] = None
-        self.deadline: Optional[float] = None
+        self.start_time: float | None = None
+        self.deadline: float | None = None
         self.last_times: dict[str, float] = {}
 
     def initialize(self, start_time: float, duration_seconds: float) -> None:

@@ -1,10 +1,14 @@
-import unittest, os, sys
+import os
+import sys
+import unittest
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 SRC = os.path.join(ROOT, 'src')
 if SRC not in sys.path:
     sys.path.insert(0, SRC)
 
-from models import SectionTiming
+from models import SectionTiming  # noqa: E402
+
 
 class TestModels(unittest.TestCase):
     def test_remaining_seconds(self):

@@ -10,6 +10,8 @@ import os
 import sys
 from typing import cast
 
+from rapm_types import LayoutConfig, SequenceConfig
+
 
 def get_base_dir() -> str:
     """Return base directory for read-only resources (configs/stimuli).
@@ -66,9 +68,8 @@ def get_exe_override_path(rel_path: str) -> str | None:
 BASE_DIR = get_base_dir()
 SEQUENCE_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')
 LAYOUT_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
+# (Import of rapm_types moved to top to satisfy E402)
 
-
-from rapm_types import SequenceConfig, LayoutConfig
 
 def load_sequence() -> SequenceConfig:
     """Load sequence.json configuration.
@@ -76,7 +77,7 @@ def load_sequence() -> SequenceConfig:
     Returns:
         SequenceConfig: practice/formal section configs and optional answers_file.
     """
-    with open(SEQUENCE_DEFAULT_PATH, 'r', encoding='utf-8') as f:
+    with open(SEQUENCE_DEFAULT_PATH, encoding='utf-8') as f:
         data = json.load(f)
     # Best‑effort cast (run‑time validation could be added if needed)
     return cast(SequenceConfig, data)
@@ -97,7 +98,7 @@ def load_layout() -> LayoutConfig:
             "这是必需的基础配置文件，请确保项目中包含此文件。"
         )
 
-    with open(LAYOUT_DEFAULT_PATH, 'r', encoding='utf-8') as f:
+    with open(LAYOUT_DEFAULT_PATH, encoding='utf-8') as f:
         layout_raw = json.load(f)
     layout: LayoutConfig = cast(LayoutConfig, layout_raw)
 
@@ -105,7 +106,7 @@ def load_layout() -> LayoutConfig:
     override_path = get_exe_override_path(os.path.join('configs', 'layout.json'))
     if override_path and os.path.exists(override_path):
         try:
-            with open(override_path, 'r', encoding='utf-8') as f:
+            with open(override_path, encoding='utf-8') as f:
                 overrides_raw = json.load(f)
             overrides = cast(LayoutConfig, overrides_raw)
             layout.update(overrides)  # overrides take precedence

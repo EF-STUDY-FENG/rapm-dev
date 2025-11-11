@@ -1,12 +1,14 @@
-from __future__ import annotations
 """Typed structures for RAPM task configuration and items."""
-from typing import TypedDict, List, Optional
+from __future__ import annotations
+
+from typing import TypedDict
+
 
 class Item(TypedDict):
     id: str
     question_image: str
-    options: List[str]
-    correct: Optional[int]
+    options: list[str]
+    correct: int | None
 
 class SectionConfig(TypedDict, total=False):
     set: str
@@ -15,7 +17,7 @@ class SectionConfig(TypedDict, total=False):
     instruction: str
     button_text: str
     time_limit_minutes: int
-    items: List[Item]
+    items: list[Item]
 
 class ParticipantInfo(TypedDict, total=False):
     participant_id: str

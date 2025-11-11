@@ -1,15 +1,16 @@
-from __future__ import annotations
 """Utility helpers for RAPM experiment."""
-from typing import List
+from __future__ import annotations
+
 from rapm_types import Item
+
 
 def build_items_from_pattern(
     pattern: str,
     count: int,
-    answers: List[int],
+    answers: list[int],
     start_index: int,
     section_prefix: str,
-) -> List[Item]:
+) -> list[Item]:
     """Build item list from file pattern template.
 
     Generates item dictionaries by expanding a pattern template with indices.
@@ -27,7 +28,7 @@ def build_items_from_pattern(
     Returns:
         List of item dicts with id, question_image, options, correct
     """
-    items: List[Item] = []
+    items: list[Item] = []
     for i in range(1, count + 1):
         XX = f"{i:02d}"
         q_path = pattern.replace('{XX}', XX).replace('{Y}', '0')

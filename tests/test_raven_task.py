@@ -2,8 +2,8 @@
 
 Tests path resolution, config loading, and utility functions without requiring PsychoPy GUI.
 """
-import sys
 import os
+import sys
 import tempfile
 
 # Add src to path and mock psychopy before importing raven_task
@@ -24,12 +24,12 @@ sys.modules['psychopy.gui'] = MockModule()
 sys.modules['PIL'] = MockModule()
 sys.modules['PIL.Image'] = MockModule()
 
-from config_loader import get_base_dir, get_output_dir, load_sequence, load_layout
-from path_utils import (
-    is_stimuli_dir_empty,
-    resolve_path,
+from config_loader import get_base_dir, get_output_dir, load_layout, load_sequence  # noqa: E402
+from path_utils import (  # noqa: E402
     file_exists_nonempty,
+    is_stimuli_dir_empty,
     load_answers,
+    resolve_path,
 )
 
 
@@ -147,7 +147,7 @@ def test_configs_are_valid_json():
     configs_tested = 0
 
     if os.path.exists(sequence_config):
-        with open(sequence_config, 'r', encoding='utf-8') as f:
+        with open(sequence_config, encoding='utf-8') as f:
             data = json.load(f)
             assert isinstance(data, dict), "sequence.json should be a JSON object"
             assert 'practice' in data or 'formal' in data, \
@@ -156,7 +156,7 @@ def test_configs_are_valid_json():
         configs_tested += 1
 
     if os.path.exists(layout_config):
-        with open(layout_config, 'r', encoding='utf-8') as f:
+        with open(layout_config, encoding='utf-8') as f:
             data = json.load(f)
             assert isinstance(data, dict), "layout.json should be a JSON object"
             assert 'font_main' in data, "layout.json should contain font_main key"
@@ -168,7 +168,9 @@ def test_configs_are_valid_json():
 def test_separate_config_loader():
     """Test that sequence and layout can be loaded separately."""
     sequence = load_sequence()
-    assert 'practice' in sequence and 'formal' in sequence, "sequence config must have practice/formal"
+    assert 'practice' in sequence and 'formal' in sequence, (
+        "sequence config must have practice/formal"
+    )
     layout = load_layout()
     assert 'font_main' in layout, "layout config must contain font_main"
     print("✓ separate config loader works")
@@ -177,10 +179,11 @@ def test_separate_config_loader():
 def test_layout_parameter_merging():
     """Test that layout parameters can be partially overridden."""
     import json
+
     from config_loader import LAYOUT_DEFAULT_PATH
 
     # Load default layout to get baseline
-    with open(LAYOUT_DEFAULT_PATH, 'r', encoding='utf-8') as f:
+    with open(LAYOUT_DEFAULT_PATH, encoding='utf-8') as f:
         default_layout = json.load(f)
 
     # Load via function (should be same as default in dev mode)
@@ -191,7 +194,9 @@ def test_layout_parameter_merging():
         assert key in loaded_layout, f"Default key '{key}' should be present in loaded layout"
 
     # Verify loaded layout has at least the same keys
-    assert len(loaded_layout) >= len(default_layout), "Loaded layout should have at least all default keys"
+    assert len(loaded_layout) >= len(default_layout), (
+        "Loaded layout should have at least all default keys"
+    )
 
     print("✓ layout parameter merging works (all default keys present)")
 

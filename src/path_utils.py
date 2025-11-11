@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Path resolution and file utilities for RAPM experiment.
 
 This module provides intelligent path resolution with support for:
@@ -7,6 +5,8 @@ This module provides intelligent path resolution with support for:
 - Empty stimuli directory fallback
 - Image size caching for performance
 """
+from __future__ import annotations
+
 import os
 import sys
 
@@ -116,7 +116,7 @@ def load_answers(answer_file: str) -> list[int]:
     """
     path = resolve_path(answer_file)
     answers: list[int] = []
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         for line in f:
             s = line.strip()
             if not s:

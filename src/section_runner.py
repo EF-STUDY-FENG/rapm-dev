@@ -1,4 +1,3 @@
-from __future__ import annotations
 """SectionRunner: orchestrates a single section flow using Renderer and Navigator.
 
 Responsibilities:
@@ -7,9 +6,11 @@ Responsibilities:
 - Main event loop: draw header/question/options/navigation
 - Handle selection, auto-advance, submit button, and timeout
 """
-from typing import Any, Optional
+from __future__ import annotations
+
+from psychopy import core, event
+
 from rapm_types import SectionConfig
-from psychopy import event, core
 
 
 class SectionRunner:
@@ -20,7 +21,13 @@ class SectionRunner:
         self.layout = layout
         self.debug_mode = debug_mode
 
-    def run_section(self, section: str, conf: SectionConfig, answers: dict[str, int], timing) -> None:
+    def run_section(
+        self,
+        section: str,
+        conf: SectionConfig,
+        answers: dict[str, int],
+        timing,
+    ) -> None:
         """Run a single section ('practice'|'formal').
 
         Args:
@@ -38,7 +45,11 @@ class SectionRunner:
         instruction_text = conf.get('instruction', '')
         button_text = conf.get('button_text', '继续')
         if instruction_text:
-            self.renderer.show_instruction(instruction_text, button_text=button_text, debug_mode=self.debug_mode)
+            self.renderer.show_instruction(
+                instruction_text,
+                button_text=button_text,
+                debug_mode=self.debug_mode,
+            )
 
         # Initialize timing
         start_time = core.getTime()
@@ -50,8 +61,8 @@ class SectionRunner:
 
         # Timer thresholds and submit flag
         if section == 'practice':
-            show_threshold: Optional[int] = None
-            red_threshold: Optional[int] = None
+            show_threshold: int | None = None
+            red_threshold: int | None = None
             show_submit = False
         else:
             if self.debug_mode:
@@ -74,11 +85,14 @@ class SectionRunner:
                 items, answers, current_index, nav_offset
             )
             for _, rect, label in nav_items:
-                rect.draw(); label.draw()
+                rect.draw()
+                label.draw()
             if l_rect:
-                l_rect.draw(); l_txt.draw()
+                l_rect.draw()
+                l_txt.draw()
             if r_rect:
-                r_rect.draw(); r_txt.draw()
+                r_rect.draw()
+                r_txt.draw()
 
             # Draw header (timer + progress)
             self.renderer.draw_header(
