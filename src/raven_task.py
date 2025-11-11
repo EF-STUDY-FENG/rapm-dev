@@ -23,7 +23,7 @@ from path_utils import load_answers
 from results_writer import ResultsWriter
 from models import SectionTiming
 from utils import build_items_from_pattern
-from rapm_types import SectionConfig, ParticipantInfo
+from rapm_types import SectionConfig, ParticipantInfo, LayoutConfig, SequenceConfig
 
 
 # =============================================================================
@@ -68,7 +68,7 @@ class RavenTask:
     def __init__(
         self,
         sequence: dict[str, Any],
-        layout: dict[str, Any],
+        layout: LayoutConfig,
         participant_info: Optional[ParticipantInfo] = None,
     ) -> None:
         """Initialize task with configuration and participant info.

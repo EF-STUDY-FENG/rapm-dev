@@ -5,11 +5,12 @@ All state (fonts, colors, positions) comes from the injected PsychoPy window
 and layout dict. Methods are side-effect only (draw + flip done outside).
 """
 from typing import Any, Optional, Sequence, Set, List
+from rapm_types import LayoutConfig
 from psychopy import visual, event, core
 from path_utils import resolve_path, file_exists_nonempty, fitted_size_keep_aspect
 
 class Renderer:
-    def __init__(self, win: visual.Window, layout: dict, font_main: Optional[str] = None):
+    def __init__(self, win: visual.Window, layout: LayoutConfig, font_main: Optional[str] = None):
         self.win = win
         self.layout = layout
     # Allow overriding font via argument

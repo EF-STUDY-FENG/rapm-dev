@@ -1,10 +1,11 @@
 from __future__ import annotations
 """Navigator component: navigation bar construction and interactions."""
 from typing import Any, Optional, List
+from rapm_types import LayoutConfig
 from psychopy import visual, event, core
 
 class Navigator:
-    def __init__(self, win: visual.Window, layout: dict, max_visible_nav: int = 12):
+    def __init__(self, win: visual.Window, layout: LayoutConfig, max_visible_nav: int = 12):
         self.win = win
         self.layout = layout
         self.max_visible_nav = max_visible_nav
