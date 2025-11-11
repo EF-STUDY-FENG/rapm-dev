@@ -1,7 +1,15 @@
 from __future__ import annotations
 """Data models for RAPM experiment."""
 from typing import Optional
-from psychopy import core
+# Lightweight time provider to avoid hard dependency on PsychoPy for pure logic/tests
+try:
+    from psychopy import core as _core  # type: ignore
+    def _now() -> float:
+        return _core.getTime()
+except Exception:
+    import time
+    def _now() -> float:
+        return time.perf_counter()
 
 class SectionTiming:
     """Encapsulates timing state for a test section.
@@ -40,5 +48,5 @@ class SectionTiming:
         """
         if self.deadline is None:
             return 0.0
-        current = now if now is not None else core.getTime()
+        current = now if now is not None else _now()
         return max(0.0, self.deadline - current)
