@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+from typing import cast
 
 
 def get_base_dir() -> str:
@@ -67,13 +68,21 @@ SEQUENCE_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')
 LAYOUT_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
 
 
-def load_sequence() -> dict:
-    """Load sequence.json configuration from default path."""
+from rapm_types import SequenceConfig, LayoutConfig
+
+def load_sequence() -> SequenceConfig:
+    """Load sequence.json configuration.
+
+    Returns:
+        SequenceConfig: practice/formal section configs and optional answers_file.
+    """
     with open(SEQUENCE_DEFAULT_PATH, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = json.load(f)
+    # Best‑effort cast (run‑time validation could be added if needed)
+    return cast(SequenceConfig, data)
 
 
-def load_layout() -> dict:
+def load_layout() -> LayoutConfig:
     """Load layout.json with external-override precedence and parameter merging.
 
     Search order:
@@ -89,16 +98,17 @@ def load_layout() -> dict:
         )
 
     with open(LAYOUT_DEFAULT_PATH, 'r', encoding='utf-8') as f:
-        layout = json.load(f)
+        layout_raw = json.load(f)
+    layout: LayoutConfig = cast(LayoutConfig, layout_raw)
 
     # Step 2: Check for external override (only when frozen)
     override_path = get_exe_override_path(os.path.join('configs', 'layout.json'))
     if override_path and os.path.exists(override_path):
         try:
             with open(override_path, 'r', encoding='utf-8') as f:
-                overrides = json.load(f)
-            # Step 3: Merge overrides into defaults (overrides take precedence)
-            layout.update(overrides)
+                overrides_raw = json.load(f)
+            overrides = cast(LayoutConfig, overrides_raw)
+            layout.update(overrides)  # overrides take precedence
         except Exception as e:
             # If override file is malformed, warn but continue with defaults
             import warnings
