@@ -66,15 +66,15 @@ class Renderer:
                 break
 
     # Header / timer / progress ----------------------------------------------
-    def draw_header(self, deadline: Optional[float], show_threshold: Optional[int], red_threshold: Optional[int],
+    def draw_header(self, remaining_seconds: Optional[float], show_threshold: Optional[int], red_threshold: Optional[int],
                     answered_count: int, total_count: int, show_timer: bool = True, show_progress: bool = True) -> None:
-        if show_timer and deadline is not None:
-            self.draw_timer(deadline, show_threshold, red_threshold)
+        if show_timer and remaining_seconds is not None:
+            self.draw_timer(remaining_seconds, show_threshold, red_threshold)
         if show_progress and total_count is not None:
             self.draw_progress(answered_count, total_count)
 
-    def draw_timer(self, deadline: Optional[float], show_threshold: Optional[int], red_threshold: Optional[int]) -> None:
-        remaining = max(0, int(deadline - core.getTime()))
+    def draw_timer(self, remaining_seconds: Optional[float], show_threshold: Optional[int], red_threshold: Optional[int]) -> None:
+        remaining = max(0, int(remaining_seconds or 0))
         if show_threshold is not None and remaining > show_threshold:
             return
         mins, secs = divmod(remaining, 60)

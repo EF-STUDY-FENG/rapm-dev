@@ -67,7 +67,7 @@ class SectionRunner:
         nav_offset = 0
 
         # Main event loop
-        while core.getTime() < timing.deadline:
+        while timing.remaining_seconds() > 0:
             item = items[current_index]
 
             # Draw navigation bar (buttons + arrows)
@@ -83,7 +83,7 @@ class SectionRunner:
 
             # Draw header (timer + progress)
             self.renderer.draw_header(
-                deadline=timing.deadline,
+                remaining_seconds=timing.remaining_seconds(),
                 show_threshold=show_threshold,
                 red_threshold=red_threshold,
                 answered_count=len(answers),
@@ -146,5 +146,5 @@ class SectionRunner:
                 continue
 
             # Timeout check (redundant, but explicit exit)
-            if core.getTime() >= timing.deadline:
+            if timing.remaining_seconds() <= 0:
                 break

@@ -71,13 +71,15 @@ class ResultsWriter:
                 'set': practice_conf.get('set'),
                 'time_limit_minutes': practice_conf.get('time_limit_minutes'),
                 'n_items': len(practice_conf.get('items', [])),
-                'correct_count': practice_correct
+                'correct_count': practice_correct,
+                'remaining_seconds_at_save': getattr(practice_timing, 'remaining_seconds', lambda: None)()
             },
             'formal': {
                 'set': formal_conf.get('set'),
                 'time_limit_minutes': formal_conf.get('time_limit_minutes'),
                 'n_items': len(formal_conf.get('items', [])),
-                'correct_count': formal_correct
+                'correct_count': formal_correct,
+                'remaining_seconds_at_save': getattr(formal_timing, 'remaining_seconds', lambda: None)()
             },
             'total_correct': practice_correct + formal_correct,
             'total_items': len(practice_conf.get('items', [])) + len(formal_conf.get('items', []))
