@@ -162,17 +162,17 @@ class RavenTask:
         # Window is local to the run lifecycle
         with create_window(self.debug_mode) as win:
             # Initialize UI helpers tied to the created window
-            self.renderer = Renderer(win, self.layout)
-            self.navigator = Navigator(self.layout, max_visible_nav=self.max_visible_nav)
-            self.section_runner = SectionRunner(
+            renderer = Renderer(win, self.layout)
+            navigator = Navigator(self.layout, max_visible_nav=self.max_visible_nav)
+            section_runner = SectionRunner(
                 win,
-                self.renderer,
-                self.navigator,
+                renderer,
+                navigator,
                 self.layout,
                 self.debug_mode,
             )
             # Practice (instruction shown inside SectionRunner)
-            self.section_runner.run_section(
+            section_runner.run_section(
                 'practice',
                 self.practice,
                 self.practice_answers,
@@ -180,7 +180,7 @@ class RavenTask:
             )
 
             # Formal (instruction shown inside SectionRunner)
-            self.section_runner.run_section(
+            section_runner.run_section(
                 'formal',
                 self.formal,
                 self.formal_answers,
@@ -191,7 +191,7 @@ class RavenTask:
             self.save_results()
 
             # Show completion message
-            self.renderer.show_completion()
+            renderer.show_completion()
 
 
     # -------------------------------------------------------------------------
@@ -202,12 +202,9 @@ class RavenTask:
         """Save experiment results to CSV and JSON files.
 
         Delegates to ResultsWriter for actual file I/O.
-        Can be called independently if needed (e.g., for testing or manual saves).
+        Can be called independently if needed (e.g., for testing or manual save).
         """
-        # Lazy instantiate writer (can be injected later if needed)
-        if not hasattr(self, 'results_writer'):
-            self.results_writer = ResultsWriter()
-        self.results_writer.save(
+        ResultsWriter().save(
             self.participant_info,
             self.practice,
             self.formal,
