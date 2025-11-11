@@ -23,6 +23,7 @@ from path_utils import load_answers
 from results_writer import ResultsWriter
 from models import SectionTiming
 from utils import build_items_from_pattern
+from rapm_types import SectionConfig, ParticipantInfo
 
 
 # =============================================================================
@@ -68,7 +69,7 @@ class RavenTask:
         self,
         sequence: dict[str, Any],
         layout: dict[str, Any],
-        participant_info: Optional[dict[str, Any]] = None,
+        participant_info: Optional[ParticipantInfo] = None,
     ) -> None:
         """Initialize task with configuration and participant info.
 
@@ -81,11 +82,12 @@ class RavenTask:
         self.win = None
 
         # Section configs (directly assigned, no intermediate dictionary)
-        self.practice = sequence['practice']
-        self.formal = sequence['formal']
+        from typing import cast
+        self.practice = cast(SectionConfig, sequence['practice'])
+        self.formal = cast(SectionConfig, sequence['formal'])
 
         # Participant and answer tracking
-        self.participant_info = participant_info or {}
+        self.participant_info = cast(ParticipantInfo, participant_info or {})
         self.practice_answers = {}
         self.formal_answers = {}
 

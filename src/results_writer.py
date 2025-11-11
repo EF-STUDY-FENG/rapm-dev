@@ -1,6 +1,7 @@
 from __future__ import annotations
 """ResultsWriter: handles persistence of Raven task results (CSV + JSON)."""
 from typing import Any, Dict
+from rapm_types import SectionConfig, ParticipantInfo
 import os, csv, json
 from datetime import datetime
 from config_loader import get_output_dir
@@ -13,9 +14,9 @@ class ResultsWriter:
 
     def save(
         self,
-        participant_info: Dict[str, Any],
-        practice_conf: Dict[str, Any],
-        formal_conf: Dict[str, Any],
+    participant_info: ParticipantInfo,
+    practice_conf: SectionConfig,
+    formal_conf: SectionConfig,
         practice_answers: Dict[str, int],
         formal_answers: Dict[str, int],
         practice_timing,

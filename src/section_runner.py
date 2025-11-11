@@ -8,6 +8,7 @@ Responsibilities:
 - Handle selection, auto-advance, submit button, and timeout
 """
 from typing import Any, Optional
+from rapm_types import SectionConfig
 from psychopy import event, core
 
 
@@ -19,7 +20,7 @@ class SectionRunner:
         self.layout = layout
         self.debug_mode = debug_mode
 
-    def run_section(self, section: str, conf: dict, answers: dict[str, int], timing) -> None:
+    def run_section(self, section: str, conf: SectionConfig, answers: dict[str, int], timing) -> None:
         """Run a single section ('practice'|'formal').
 
         Args:
