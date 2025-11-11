@@ -82,7 +82,7 @@ class SectionRunner:
 
             # Draw navigation bar (buttons + arrows)
             nav_items, l_rect, l_txt, r_rect, r_txt = self.navigator.build_navigation(
-                items, answers, current_index, nav_offset
+                self.win, items, answers, current_index, nav_offset
             )
             for _, rect, label in nav_items:
                 rect.draw()
@@ -150,7 +150,7 @@ class SectionRunner:
 
             # Handle navigation click
             nav_action, current_index, nav_offset = self.navigator.handle_click(
-                nav_items, l_rect, r_rect, items, current_index, nav_offset
+                self.win, nav_items, l_rect, r_rect, items, current_index, nav_offset
             )
             if nav_action == 'jump':
                 nav_offset = self.navigator.center_offset(current_index, n_items)

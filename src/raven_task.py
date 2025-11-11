@@ -12,8 +12,8 @@ Architecture:
 """
 from __future__ import annotations
 
-from typing import Any
 from contextlib import contextmanager
+from typing import Any
 
 from psychopy import visual
 
@@ -163,7 +163,7 @@ class RavenTask:
         with create_window(self.debug_mode) as win:
             # Initialize UI helpers tied to the created window
             self.renderer = Renderer(win, self.layout)
-            self.navigator = Navigator(win, self.layout, max_visible_nav=self.max_visible_nav)
+            self.navigator = Navigator(self.layout, max_visible_nav=self.max_visible_nav)
             self.section_runner = SectionRunner(
                 win,
                 self.renderer,
@@ -187,16 +187,23 @@ class RavenTask:
                 self.formal_timing,
             )
 
-            # Save and show completion message
-            self._save_and_exit()
+            # Save results
+            self.save_results()
+
+            # Show completion message
+            self.renderer.show_completion()
 
 
     # -------------------------------------------------------------------------
     # DATA PERSISTENCE
     # -------------------------------------------------------------------------
 
-    def _save_and_exit(self) -> None:
-        """Delegate persistence to ResultsWriter then show completion message."""
+    def save_results(self) -> None:
+        """Save experiment results to CSV and JSON files.
+
+        Delegates to ResultsWriter for actual file I/O.
+        Can be called independently if needed (e.g., for testing or manual saves).
+        """
         # Lazy instantiate writer (can be injected later if needed)
         if not hasattr(self, 'results_writer'):
             self.results_writer = ResultsWriter()
@@ -209,5 +216,3 @@ class RavenTask:
             self.practice_timing,
             self.formal_timing,
         )
-        # Completion splash via renderer helper (time-based)
-        self.renderer.show_completion()

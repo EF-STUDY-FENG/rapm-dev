@@ -9,13 +9,13 @@ from rapm_types import LayoutConfig
 
 
 class Navigator:
-    def __init__(self, win: visual.Window, layout: LayoutConfig, max_visible_nav: int = 12):
-        self.win = win
+    def __init__(self, layout: LayoutConfig, max_visible_nav: int = 12):
         self.layout = layout
         self.max_visible_nav = max_visible_nav
 
     def build_navigation(
         self,
+        win: visual.Window,
         items: list[dict],
         answers_dict: dict[str, int],
         current_index: int,
@@ -49,7 +49,7 @@ class Navigator:
         for i, gi in enumerate(visible):
             answered = items[gi]['id'] in answers_dict
             rect = visual.Rect(
-                self.win, width=item_w, height=item_h, pos=(xs[i], nav_y),
+                win, width=item_w, height=item_h, pos=(xs[i], nav_y),
                 lineColor='yellow' if gi == current_index else 'white', lineWidth=3,
                 fillColor=(0, 0.45, 0) if answered else None,
             )
@@ -57,7 +57,7 @@ class Navigator:
             _digits = ''.join([ch for ch in _raw_id if ch.isdigit()])
             _label_txt = str(int(_digits)) if _digits else _raw_id
             label = visual.TextStim(
-                self.win, text=_label_txt, pos=(xs[i], nav_y), height=label_h,
+                win, text=_label_txt, pos=(xs[i], nav_y), height=label_h,
                 color='black' if answered else 'white', bold=answered, font=self.layout['font_main']
             )
             stims.append((gi, rect, label))
@@ -68,26 +68,27 @@ class Navigator:
 
         if start > 0:
             left_rect = visual.Rect(
-                self.win, width=arrow_w, height=arrow_h, pos=(x_left_edge, nav_y),
+                win, width=arrow_w, height=arrow_h, pos=(x_left_edge, nav_y),
                 lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15),
             )
             left_txt = visual.TextStim(
-                self.win, text='◄', pos=(x_left_edge, nav_y), height=arrow_label_h,
+                win, text='◄', pos=(x_left_edge, nav_y), height=arrow_label_h,
                 bold=True, font=self.layout['font_main']
             )
         if end < n:
             right_rect = visual.Rect(
-                self.win, width=arrow_w, height=arrow_h, pos=(x_right_edge, nav_y),
+                win, width=arrow_w, height=arrow_h, pos=(x_right_edge, nav_y),
                 lineColor='white', lineWidth=3, fillColor=(0.15, 0.15, 0.15),
             )
             right_txt = visual.TextStim(
-                self.win, text='►', pos=(x_right_edge, nav_y), height=arrow_label_h,
+                win, text='►', pos=(x_right_edge, nav_y), height=arrow_label_h,
                 bold=True, font=self.layout['font_main']
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
     def handle_click(
         self,
+        win: visual.Window,
         nav_items: list[tuple[int, Any, Any]],
         left_rect: Any,
         right_rect: Any,
@@ -95,7 +96,7 @@ class Navigator:
         current_index: int,
         nav_offset: int,
     ) -> tuple[str | None, int, int]:
-        mouse = event.Mouse(win=self.win)
+        mouse = event.Mouse(win=win)
         if any(mouse.getPressed()):
             if left_rect and left_rect.contains(mouse):
                 while any(mouse.getPressed()):
