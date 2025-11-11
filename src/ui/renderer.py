@@ -1,8 +1,8 @@
 from __future__ import annotations
-"""Renderer component: all drawing logic for RavenTask.
+"""Renderer: encapsulates all drawing primitives for the RAPM task.
 
-Public methods are intentionally minimal; all state comes from injected
-PsychoPy window and layout dict.
+All state (fonts, colors, positions) comes from the injected PsychoPy window
+and layout dict. Methods are side-effect only (draw + flip done outside).
 """
 from typing import Any, Optional, Sequence, Set, List
 from psychopy import visual, event, core
@@ -12,7 +12,7 @@ class Renderer:
     def __init__(self, win: visual.Window, layout: dict, font_main: Optional[str] = None):
         self.win = win
         self.layout = layout
-        # Allow overriding font if needed
+    # Allow overriding font via argument
         if font_main:
             self.layout['font_main'] = font_main
 

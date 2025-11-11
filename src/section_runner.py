@@ -6,8 +6,6 @@ Responsibilities:
 - Initialize timing (SectionTiming provided by caller)
 - Main event loop: draw header/question/options/navigation
 - Handle selection, auto-advance, submit button, and timeout
-
-Zero behavior change vs original RavenTask._run_section.
 """
 from typing import Any, Optional
 from psychopy import event, core

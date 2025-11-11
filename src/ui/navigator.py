@@ -1,6 +1,6 @@
 from __future__ import annotations
 """Navigator component: navigation bar construction and interactions."""
-from typing import Any, Optional, Tuple, List
+from typing import Any, Optional, List
 from psychopy import visual, event, core
 
 class Navigator:

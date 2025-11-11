@@ -18,9 +18,7 @@ from psychopy import visual
 from ui.renderer import Renderer
 from ui.navigator import Navigator
 from section_runner import SectionRunner
-from path_utils import (
-    load_answers,
-)
+from path_utils import load_answers
 
 from results_writer import ResultsWriter
 from models import SectionTiming
@@ -148,14 +146,14 @@ class RavenTask:
             )
 
         try:
-            # Run practice (instruction shown inside _run_section)
+            # Run practice (instruction shown inside SectionRunner)
             # Initialize UI helpers tied to the created window
             self.renderer = Renderer(self.win, self.layout)
             self.navigator = Navigator(self.win, self.layout, max_visible_nav=self.max_visible_nav)
             self.section_runner = SectionRunner(self.win, self.renderer, self.navigator, self.layout, self.debug_mode)
             self.section_runner.run_section('practice', self.practice, self.practice_answers, self.practice_timing)
 
-            # Run formal (instruction shown inside _run_section)
+            # Run formal (instruction shown inside SectionRunner)
             self.section_runner.run_section('formal', self.formal, self.formal_answers, self.formal_timing)
 
             # Save and show completion message
