@@ -31,7 +31,7 @@ from utils import build_items_from_pattern
 # MODULE-LEVEL HELPERS
 # =============================================================================
 
- 
+
 
 
 # =============================================================================
@@ -187,16 +187,5 @@ class RavenTask:
             self.practice_timing,
             self.formal_timing,
         )
-        # Completion splash
-        lines = ['作答完成！', '感谢您的作答！']
-        colors = ['green', 'white']
-        for _ in range(300):  # ~5 seconds
-            self.renderer.draw_multiline(
-                lines,
-                center_y=0.05,
-                line_height=0.065,
-                spacing=1.5,
-                colors=colors,
-                bold_idx={0}
-            )
-            self.win.flip()
+        # Completion splash via renderer helper (time-based)
+        self.renderer.show_completion()

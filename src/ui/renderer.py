@@ -211,3 +211,37 @@ class Renderer:
                 while any(mouse.getPressed()): core.wait(0.01)
                 return i
         return None
+
+    # Completion splash ------------------------------------------------------
+    def show_completion(
+        self,
+        lines: Optional[Sequence[str]] = None,
+        colors: Optional[List[str]] = None,
+        seconds: float = 5.0,
+        center_y: float = 0.05,
+        line_height: float = 0.065,
+        spacing: float = 1.5,
+        bold_idx: Optional[Set[int]] = None,
+    ) -> None:
+        """Render completion message for a given duration.
+
+        Defaults match previous hardcoded values in RavenTask.
+        Uses time-based loop to avoid FPS assumptions.
+        """
+        if lines is None:
+            lines = ['作答完成！', '感谢您的作答！']
+        if colors is None:
+            colors = ['green', 'white']
+        if bold_idx is None:
+            bold_idx = {0}
+        end_time = core.getTime() + max(0.0, seconds)
+        while core.getTime() < end_time:
+            self.draw_multiline(
+                lines,
+                center_y=center_y,
+                line_height=line_height,
+                spacing=spacing,
+                colors=colors,
+                bold_idx=bold_idx,
+            )
+            self.win.flip()

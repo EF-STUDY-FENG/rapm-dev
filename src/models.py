@@ -28,3 +28,17 @@ class SectionTiming:
 
     def is_initialized(self) -> bool:
         return self.start_time is not None and self.deadline is not None
+
+    def remaining_seconds(self, now: float | None = None) -> float:
+        """Return non-negative remaining seconds until deadline.
+
+        Args:
+            now: Optional current timestamp; defaults to core.getTime()
+
+        Returns:
+            Remaining seconds (float, >= 0.0). Returns 0.0 if not initialized.
+        """
+        if self.deadline is None:
+            return 0.0
+        current = now if now is not None else core.getTime()
+        return max(0.0, self.deadline - current)
