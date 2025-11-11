@@ -13,6 +13,7 @@ Architecture:
 from __future__ import annotations
 
 from typing import Any
+from contextlib import contextmanager
 
 from psychopy import visual
 
@@ -29,7 +30,36 @@ from utils import build_items_from_pattern
 # MODULE-LEVEL HELPERS
 # =============================================================================
 
+@contextmanager
+def create_window(debug_mode: bool):
+    """Context manager to create and cleanup a PsychoPy window.
 
+    Args:
+        debug_mode: When True, creates a windowed mode for faster debugging.
+                    When False, creates a fullscreen window for experiments.
+
+    Yields:
+        visual.Window: The created PsychoPy window.
+    """
+    if debug_mode:
+        win = visual.Window(
+            size=(1280, 800),
+            color='black',
+            units='norm',
+        )
+    else:
+        win = visual.Window(
+            fullscr=True,
+            color='black',
+            units='norm',
+        )
+    try:
+        yield win
+    finally:
+        try:
+            win.close()
+        except Exception:
+            pass
 
 
 # =============================================================================
@@ -77,9 +107,6 @@ class RavenTask:
             layout: UI layout parameters from configs/layout.json
             participant_info: Participant metadata (id, age, gender, etc.)
         """
-        # Window managed by run() method
-        self.win = None
-
         # Section configs (directly assigned, no intermediate dictionary)
         from typing import cast
         self.practice = cast(SectionConfig, sequence['practice'])
@@ -132,32 +159,19 @@ class RavenTask:
 
     def run(self) -> None:
         """Main entry point: create window → run sections → save → cleanup."""
-        # Create window based on debug mode
-        if self.debug_mode:
-            self.win = visual.Window(
-                size=(1280, 800),
-                color='black',
-                units='norm'
-            )
-        else:
-            self.win = visual.Window(
-                fullscr=True,
-                color='black',
-                units='norm'
-            )
-
-        try:
-            # Run practice (instruction shown inside SectionRunner)
+        # Window is local to the run lifecycle
+        with create_window(self.debug_mode) as win:
             # Initialize UI helpers tied to the created window
-            self.renderer = Renderer(self.win, self.layout)
-            self.navigator = Navigator(self.win, self.layout, max_visible_nav=self.max_visible_nav)
+            self.renderer = Renderer(win, self.layout)
+            self.navigator = Navigator(win, self.layout, max_visible_nav=self.max_visible_nav)
             self.section_runner = SectionRunner(
-                self.win,
+                win,
                 self.renderer,
                 self.navigator,
                 self.layout,
                 self.debug_mode,
             )
+            # Practice (instruction shown inside SectionRunner)
             self.section_runner.run_section(
                 'practice',
                 self.practice,
@@ -165,7 +179,7 @@ class RavenTask:
                 self.practice_timing,
             )
 
-            # Run formal (instruction shown inside SectionRunner)
+            # Formal (instruction shown inside SectionRunner)
             self.section_runner.run_section(
                 'formal',
                 self.formal,
@@ -175,13 +189,6 @@ class RavenTask:
 
             # Save and show completion message
             self._save_and_exit()
-        finally:
-            # Always cleanup window
-            try:
-                if self.win is not None:
-                    self.win.close()
-            except Exception:
-                pass
 
 
     # -------------------------------------------------------------------------
