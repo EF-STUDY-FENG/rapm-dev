@@ -50,6 +50,8 @@ class Renderer:
 
         mouse = event.Mouse(win=self.win)
         clickable = False
+        mouse_was_pressed = False  # Edge detection state
+
         while True:
             elapsed = core.getTime() - show_start
             if not clickable and elapsed >= delay:
@@ -92,9 +94,13 @@ class Renderer:
             btn_rect.draw()
             btn_label.draw()
             self.win.flip()
-            if clickable and any(mouse.getPressed()) and btn_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
+
+            # Edge detection: only trigger on release
+            mouse_is_pressed = any(mouse.getPressed())
+            mouse_just_released = mouse_was_pressed and not mouse_is_pressed
+            mouse_was_pressed = mouse_is_pressed
+
+            if clickable and mouse_just_released and btn_rect.contains(mouse):
                 break
 
     def show_completion(
@@ -347,15 +353,3 @@ class Renderer:
                 ))
         total_cells = cols * rows
         return rects[:total_cells]
-
-    def detect_click_on_rects(self, rects: list[Any]) -> int | None:
-        """Check if mouse clicked on any rect, return index or None."""
-        mouse = event.Mouse(win=self.win)
-        if not any(mouse.getPressed()):
-            return None
-        for i, rect in enumerate(rects):
-            if rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                return i
-        return None

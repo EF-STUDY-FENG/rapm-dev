@@ -80,6 +80,10 @@ class SectionRunner:
         current_index = 0
         nav_offset = 0
 
+        # Mouse state tracking (for debouncing without blocking)
+        mouse = event.Mouse(win=self.win)
+        mouse_was_pressed = False  # Track previous frame state
+
         # Main event loop
         while timing.remaining_seconds() > 0:
             item = items[current_index]
@@ -126,42 +130,43 @@ class SectionRunner:
 
             self.win.flip()
 
+            # Detect mouse state: only trigger on press→release transition (debounce)
+            mouse_is_pressed = any(mouse.getPressed())
+            mouse_just_released = mouse_was_pressed and not mouse_is_pressed
+            mouse_was_pressed = mouse_is_pressed
+
+            # Skip interaction detection if mouse still held or not just released
+            if not mouse_just_released:
+                continue
+
             # Handle submit button click (formal only)
-            if submit_btn:
-                mouse_global = event.Mouse(win=self.win)
-                if any(mouse_global.getPressed()) and submit_btn.contains(mouse_global):
-                    while any(mouse_global.getPressed()):
-                        core.wait(0.01)
-                    return  # Exit section
+            if submit_btn and submit_btn.contains(mouse):
+                return  # Exit section
 
             # Handle option click
-            choice = self.renderer.detect_click_on_rects(rects)
-            if choice is not None:
-                answers[item['id']] = choice + 1
-                timing.last_times[item['id']] = core.getTime()
+            for i, rect in enumerate(rects):
+                if rect.contains(mouse):
+                    answers[item['id']] = i + 1
+                    timing.last_times[item['id']] = core.getTime()
 
-                # Check completion
-                if len(answers) == n_items:
-                    if section == 'practice':
-                        break  # Exit practice immediately
-                    # Formal: stay in loop to show submit button
-                else:
-                    # Auto-advance to next unanswered
-                    next_index = self.navigator.find_next_unanswered(items, answers, current_index)
-                    current_index = next_index
-                    nav_offset = self.navigator.center_offset(next_index, n_items)
-                continue
+                    # Check completion
+                    if len(answers) == n_items:
+                        if section == 'practice':
+                            break  # Exit practice immediately
+                        # Formal: stay in loop to show submit button
+                    else:
+                        # Auto-advance to next unanswered
+                        next_index = self.navigator.find_next_unanswered(
+                            items, answers, current_index
+                        )
+                        current_index = next_index
+                        nav_offset = self.navigator.center_offset(next_index, n_items)
+                    break  # Found clicked rect, exit for loop
 
             # Handle navigation click
             nav_action, current_index, nav_offset = self.navigator.handle_click(
-                self.win, nav_items, l_rect, r_rect, items, current_index, nav_offset
+                self.win, nav_items, l_rect, r_rect, items, current_index, nav_offset, mouse
             )
             if nav_action == 'jump':
                 nav_offset = self.navigator.center_offset(current_index, n_items)
-                continue
-            if nav_action == 'page':
-                continue
-
-            # Timeout check (redundant, but explicit exit)
-            if timing.remaining_seconds() <= 0:
-                break
+            # Note: No explicit continue needed - loop will naturally proceed

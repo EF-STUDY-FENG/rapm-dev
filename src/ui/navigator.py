@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from psychopy import core, event, visual
+from psychopy import visual
 
 from rapm_types import LayoutConfig
 
@@ -114,32 +114,32 @@ class Navigator:
         items: list[dict[str, Any]],
         current_index: int,
         nav_offset: int,
+        mouse: Any,
     ) -> tuple[str | None, int, int]:
-        """Handle mouse clicks on navigation elements.
+        """Handle mouse clicks on navigation elements (non-blocking).
+
+        Requires caller to manage mouse state and debouncing via edge detection.
+        Only checks position (contains), assumes valid click already detected.
+
+        Args:
+            mouse: Pre-created Mouse object from caller's event loop.
 
         Returns:
             (action_type, new_current_index, new_nav_offset)
             action_type: 'page' (arrow click), 'jump' (item click), or None
         """
-        mouse = event.Mouse(win=win)
-        if any(mouse.getPressed()):
-            if left_rect and left_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                nav_offset = max(0, nav_offset - self.max_visible_nav)
-                return 'page', current_index, nav_offset
-            if right_rect and right_rect.contains(mouse):
-                while any(mouse.getPressed()):
-                    core.wait(0.01)
-                max_off = max(0, len(items) - self.max_visible_nav)
-                nav_offset = min(max_off, nav_offset + self.max_visible_nav)
-                return 'page', current_index, nav_offset
-            for gi, rect, label in nav_items:
-                if rect.contains(mouse) or label.contains(mouse):
-                    while any(mouse.getPressed()):
-                        core.wait(0.01)
-                    current_index = gi
-                    return 'jump', current_index, nav_offset
+        # Check for clicks (caller handles debouncing via mouse_just_released)
+        if left_rect and left_rect.contains(mouse):
+            nav_offset = max(0, nav_offset - self.max_visible_nav)
+            return 'page', current_index, nav_offset
+        if right_rect and right_rect.contains(mouse):
+            max_off = max(0, len(items) - self.max_visible_nav)
+            nav_offset = min(max_off, nav_offset + self.max_visible_nav)
+            return 'page', current_index, nav_offset
+        for gi, rect, label in nav_items:
+            if rect.contains(mouse) or label.contains(mouse):
+                current_index = gi
+                return 'jump', current_index, nav_offset
         return None, current_index, nav_offset
 
     # =========================================================================
