@@ -14,6 +14,10 @@ from rapm_types import LayoutConfig
 
 
 class Renderer:
+    # =========================================================================
+    # CONSTRUCTION
+    # =========================================================================
+
     def __init__(self, win: visual.Window, layout: LayoutConfig, font_main: str | None = None):
         self.win = win
         self.layout = layout
@@ -21,8 +25,16 @@ class Renderer:
         if font_main:
             self.layout['font_main'] = font_main
 
-    # Instruction screen -----------------------------------------------------
+    # =========================================================================
+    # COMPLETE SCREEN FLOWS (show_* methods with internal flip loops)
+    # =========================================================================
+
     def show_instruction(self, text: str, button_text: str, debug_mode: bool) -> None:
+        """Blocking: Display instruction screen with timed button.
+
+        Performs internal flip loop until user clicks the button.
+        Button becomes clickable after delay (0s in debug, configurable otherwise).
+        """
         lines = (text or '').split('\n')
         center_y = self.layout['instruction_center_y']
         line_h = self.layout['instruction_line_height']
@@ -85,7 +97,43 @@ class Renderer:
                     core.wait(0.01)
                 break
 
-    # Header / timer / progress ----------------------------------------------
+    def show_completion(
+        self,
+        lines: Sequence[str] | None = None,
+        colors: list[str] | None = None,
+        seconds: float = 5.0,
+        center_y: float = 0.05,
+        line_height: float = 0.065,
+        spacing: float = 1.5,
+        bold_idx: set[int] | None = None,
+    ) -> None:
+        """Blocking: Render completion message for a given duration.
+
+        Performs internal flip loop for the specified duration.
+        Defaults match previous hardcoded values in RavenTask.
+        """
+        if lines is None:
+            lines = ['作答完成！', '感谢您的作答！']
+        if colors is None:
+            colors = ['green', 'white']
+        if bold_idx is None:
+            bold_idx = {0}
+        end_time = core.getTime() + max(0.0, seconds)
+        while core.getTime() < end_time:
+            self.draw_multiline(
+                lines,
+                center_y=center_y,
+                line_height=line_height,
+                spacing=spacing,
+                colors=colors,
+                bold_idx=bold_idx,
+            )
+            self.win.flip()
+
+    # =========================================================================
+    # ATOMIC DRAWING METHODS (draw_* - no flip, caller manages refresh)
+    # =========================================================================
+
     def draw_header(
         self,
         remaining_seconds: float | None,
@@ -96,6 +144,7 @@ class Renderer:
         show_timer: bool = True,
         show_progress: bool = True,
     ) -> None:
+        """Draw header area: timer and/or progress bar."""
         if show_timer and remaining_seconds is not None:
             self.draw_timer(remaining_seconds, show_threshold, red_threshold)
         if show_progress and total_count is not None:
@@ -107,6 +156,7 @@ class Renderer:
         show_threshold: int | None,
         red_threshold: int | None,
     ) -> None:
+        """Draw countdown timer (hides if above show_threshold)."""
         remaining = max(0, int(remaining_seconds or 0))
         if show_threshold is not None and remaining > show_threshold:
             return
@@ -119,6 +169,7 @@ class Renderer:
         ).draw()
 
     def draw_progress(self, answered_count: int, total_count: int) -> None:
+        """Draw progress indicator (e.g., 'Answered 3 / Total 12')."""
         answered_count = max(0, min(answered_count, total_count))
         txt = f"已答 {answered_count} / 总数 {total_count}"
         color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
@@ -135,39 +186,8 @@ class Renderer:
             pass
         stim.draw()
 
-    # Multiline ---------------------------------------------------------------
-    def draw_multiline(
-        self,
-        lines: Sequence[str],
-        center_y: float,
-        line_height: float,
-        spacing: float = 1.5,
-        colors: list[str] | None = None,
-        bold_idx: set[int] | None = None,
-        x: float = 0.0,
-    ) -> None:
-        lines = list(lines or [])
-        n = len(lines)
-        if n == 0:
-            return
-        total = line_height * spacing * (n - 1) if n > 1 else 0.0
-        start_y = center_y + total / 2.0
-        for i, text in enumerate(lines):
-            y = start_y - i * (line_height * spacing)
-            color = (colors[i] if (colors and i < len(colors)) else 'white')
-            stim = visual.TextStim(
-                self.win, text=text or '', pos=(x, y), height=line_height,
-                color=color, font=self.layout['font_main']
-            )
-            try:
-                if bold_idx and i in bold_idx:
-                    stim.bold = True
-            except Exception:
-                pass
-            stim.draw()
-
-    # Question & options ------------------------------------------------------
     def draw_question(self, item_id: str, image_path: str | None) -> None:
+        """Draw question image or fallback text."""
         q_w = self.layout['question_box_w'] * self.layout['scale_question']
         q_h = self.layout['question_box_h'] * self.layout['scale_question']
         if image_path and file_exists_nonempty(image_path):
@@ -198,32 +218,13 @@ class Renderer:
                 font=self.layout['font_main'],
             ).draw()
 
-    def create_option_rects(self) -> list[Any]:
-        cols = int(self.layout['option_cols'])
-        rows = int(self.layout['option_rows'])
-        dx = self.layout['option_dx']
-        dy = self.layout['option_dy']
-        rect_w = self.layout['option_rect_w'] * self.layout['scale_option']
-        rect_h = self.layout['option_rect_h'] * self.layout['scale_option']
-        center_y = self.layout['option_grid_center_y']
-        rects: list[Any] = []
-        for r in range(rows):
-            for c in range(cols):
-                x = (c - (cols - 1) / 2) * dx
-                y = center_y - (r - (rows - 1) / 2) * dy
-                rects.append(visual.Rect(
-                    self.win, width=rect_w, height=rect_h, pos=(x, y),
-                    lineColor='white', lineWidth=2, fillColor=None
-                ))
-        total_cells = cols * rows
-        return rects[:total_cells]
-
     def draw_options(
         self,
         option_paths: list[str],
         rects: list[Any],
         selected_index: int | None,
     ) -> None:
+        """Draw option grid with images or fallback labels."""
         for i, rect in enumerate(rects):
             if selected_index is not None and i == selected_index:
                 rect.lineColor = 'yellow'
@@ -254,6 +255,7 @@ class Renderer:
                     ).draw()
 
     def draw_submit_button(self) -> Any:
+        """Draw submit button (returns rect for hit testing)."""
         btn_pos = (self.layout['button_x'], self.layout['submit_button_y'])
         mouse_local = event.Mouse(win=self.win)
         temp_rect = visual.Rect(
@@ -290,8 +292,64 @@ class Renderer:
         submit_label.draw()
         return submit_rect
 
-    # Click detection for option rects ---------------------------------------
+    def draw_multiline(
+        self,
+        lines: Sequence[str],
+        center_y: float,
+        line_height: float,
+        spacing: float = 1.5,
+        colors: list[str] | None = None,
+        bold_idx: set[int] | None = None,
+        x: float = 0.0,
+    ) -> None:
+        """Draw centered multi-line text with optional colors and bold lines."""
+        lines = list(lines or [])
+        n = len(lines)
+        if n == 0:
+            return
+        total = line_height * spacing * (n - 1) if n > 1 else 0.0
+        start_y = center_y + total / 2.0
+        for i, text in enumerate(lines):
+            y = start_y - i * (line_height * spacing)
+            color = (colors[i] if (colors and i < len(colors)) else 'white')
+            stim = visual.TextStim(
+                self.win, text=text or '', pos=(x, y), height=line_height,
+                color=color, font=self.layout['font_main']
+            )
+            try:
+                if bold_idx and i in bold_idx:
+                    stim.bold = True
+            except Exception:
+                pass
+            stim.draw()
+
+    # =========================================================================
+    # UTILITY METHODS (geometry, hit testing)
+    # =========================================================================
+
+    def create_option_rects(self) -> list[Any]:
+        """Create rect objects for option grid (caller draws them)."""
+        cols = int(self.layout['option_cols'])
+        rows = int(self.layout['option_rows'])
+        dx = self.layout['option_dx']
+        dy = self.layout['option_dy']
+        rect_w = self.layout['option_rect_w'] * self.layout['scale_option']
+        rect_h = self.layout['option_rect_h'] * self.layout['scale_option']
+        center_y = self.layout['option_grid_center_y']
+        rects: list[Any] = []
+        for r in range(rows):
+            for c in range(cols):
+                x = (c - (cols - 1) / 2) * dx
+                y = center_y - (r - (rows - 1) / 2) * dy
+                rects.append(visual.Rect(
+                    self.win, width=rect_w, height=rect_h, pos=(x, y),
+                    lineColor='white', lineWidth=2, fillColor=None
+                ))
+        total_cells = cols * rows
+        return rects[:total_cells]
+
     def detect_click_on_rects(self, rects: list[Any]) -> int | None:
+        """Check if mouse clicked on any rect, return index or None."""
         mouse = event.Mouse(win=self.win)
         if not any(mouse.getPressed()):
             return None
@@ -301,37 +359,3 @@ class Renderer:
                     core.wait(0.01)
                 return i
         return None
-
-    # Completion splash ------------------------------------------------------
-    def show_completion(
-        self,
-        lines: Sequence[str] | None = None,
-        colors: list[str] | None = None,
-        seconds: float = 5.0,
-        center_y: float = 0.05,
-        line_height: float = 0.065,
-        spacing: float = 1.5,
-        bold_idx: set[int] | None = None,
-    ) -> None:
-        """Render completion message for a given duration.
-
-        Defaults match previous hardcoded values in RavenTask.
-        Uses time-based loop to avoid FPS assumptions.
-        """
-        if lines is None:
-            lines = ['作答完成！', '感谢您的作答！']
-        if colors is None:
-            colors = ['green', 'white']
-        if bold_idx is None:
-            bold_idx = {0}
-        end_time = core.getTime() + max(0.0, seconds)
-        while core.getTime() < end_time:
-            self.draw_multiline(
-                lines,
-                center_y=center_y,
-                line_height=line_height,
-                spacing=spacing,
-                colors=colors,
-                bold_idx=bold_idx,
-            )
-            self.win.flip()

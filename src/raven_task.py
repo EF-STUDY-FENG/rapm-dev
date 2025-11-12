@@ -78,6 +78,7 @@ class RavenTask:
 
     Public API:
     - run(): Execute the full task lifecycle (create window → run sections → save → cleanup)
+    - save_results(): Save experiment data (can be called independently)
 
     Key features:
     - Config-driven instructions and timing
@@ -87,12 +88,12 @@ class RavenTask:
     - Submit button in formal section
 
     Notes:
-    - All non-public methods are internal and prefixed with an underscore (_).
+    - Window and UI components are local to run() scope
     """
 
-    # -------------------------------------------------------------------------
-    # LIFECYCLE & CORE (construction and section orchestration)
-    # -------------------------------------------------------------------------
+    # =========================================================================
+    # CONSTRUCTION
+    # =========================================================================
 
     def __init__(
         self,
@@ -153,12 +154,21 @@ class RavenTask:
                     f_pattern, f_count, answers, p_count, 'F'
                 )
 
-    # -------------------------------------------------------------------------
+    # =========================================================================
     # PUBLIC API
-    # -------------------------------------------------------------------------
+    # =========================================================================
 
     def run(self) -> None:
-        """Main entry point: create window → run sections → save → cleanup."""
+        """Main entry point: create window → run sections → save → cleanup.
+
+        Flow:
+        1. Create window (context manager ensures cleanup)
+        2. Initialize UI components (renderer, navigator, section_runner)
+        3. Run practice section
+        4. Run formal section
+        5. Save results
+        6. Show completion message
+        """
         # Window is local to the run lifecycle
         with create_window(self.debug_mode) as win:
             # Initialize UI helpers tied to the created window
@@ -194,9 +204,9 @@ class RavenTask:
             renderer.show_completion()
 
 
-    # -------------------------------------------------------------------------
+    # =========================================================================
     # DATA PERSISTENCE
-    # -------------------------------------------------------------------------
+    # =========================================================================
 
     def save_results(self) -> None:
         """Save experiment results to CSV and JSON files.

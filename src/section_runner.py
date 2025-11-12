@@ -1,10 +1,6 @@
 """SectionRunner: orchestrates a single section flow using Renderer and Navigator.
 
 Responsibilities:
-- Show instruction
-- Initialize timing (SectionTiming provided by caller)
-- Main event loop: draw header/question/options/navigation
-- Handle selection, auto-advance, submit button, and timeout
 """
 from __future__ import annotations
 
@@ -14,12 +10,20 @@ from rapm_types import SectionConfig
 
 
 class SectionRunner:
+    # =========================================================================
+    # CONSTRUCTION
+    # =========================================================================
+
     def __init__(self, win, renderer, navigator, layout: dict, debug_mode: bool) -> None:
         self.win = win
         self.renderer = renderer
         self.navigator = navigator
         self.layout = layout
         self.debug_mode = debug_mode
+
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
 
     def run_section(
         self,

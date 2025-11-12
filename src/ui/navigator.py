@@ -9,9 +9,17 @@ from rapm_types import LayoutConfig
 
 
 class Navigator:
+    # =========================================================================
+    # CONSTRUCTION
+    # =========================================================================
+
     def __init__(self, layout: LayoutConfig, max_visible_nav: int = 12):
         self.layout = layout
         self.max_visible_nav = max_visible_nav
+
+    # =========================================================================
+    # UI CONSTRUCTION (builds visual elements, returns for caller to draw)
+    # =========================================================================
 
     def build_navigation(
         self,
@@ -21,6 +29,13 @@ class Navigator:
         current_index: int,
         offset: int,
     ) -> tuple[list[tuple[int, Any, Any]], Any, Any, Any, Any]:
+        """Build navigation bar with item buttons and arrow controls.
+
+        Returns:
+            (nav_items, left_rect, left_txt, right_rect, right_txt)
+            - nav_items: list of (global_index, rect, label) tuples
+            - arrow components or None if not needed
+        """
         n = len(items)
         start = offset
         end = min(n, start + self.max_visible_nav)
@@ -86,6 +101,10 @@ class Navigator:
             )
         return stims, left_rect, left_txt, right_rect, right_txt
 
+    # =========================================================================
+    # EVENT HANDLING (processes user interactions)
+    # =========================================================================
+
     def handle_click(
         self,
         win: visual.Window,
@@ -96,6 +115,12 @@ class Navigator:
         current_index: int,
         nav_offset: int,
     ) -> tuple[str | None, int, int]:
+        """Handle mouse clicks on navigation elements.
+
+        Returns:
+            (action_type, new_current_index, new_nav_offset)
+            action_type: 'page' (arrow click), 'jump' (item click), or None
+        """
         mouse = event.Mouse(win=win)
         if any(mouse.getPressed()):
             if left_rect and left_rect.contains(mouse):
@@ -117,7 +142,12 @@ class Navigator:
                     return 'jump', current_index, nav_offset
         return None, current_index, nav_offset
 
+    # =========================================================================
+    # UTILITY METHODS (calculation helpers)
+    # =========================================================================
+
     def center_offset(self, index: int, total: int) -> int:
+        """Calculate offset to center given index in visible window."""
         if total <= self.max_visible_nav:
             return 0
         half = self.max_visible_nav // 2
@@ -135,6 +165,11 @@ class Navigator:
         answers_dict: dict[str, int],
         current_index: int,
     ) -> int:
+        """Find next unanswered item index for auto-advance.
+
+        Logic: If at last item, wrap to first unanswered. Otherwise, find
+        next unanswered forward, or just advance by 1 if all are answered.
+        """
         n_items = len(items)
         next_index = current_index
         if current_index == n_items - 1:
