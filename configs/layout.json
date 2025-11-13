@@ -82,7 +82,7 @@
   "option_rect_h": 0.35,
   "option_img_w": 0.36,
   "option_img_h": 0.28,
-  "option_img_fill": 0.92,
+  "option_img_fill": 0.98,
   "instruction_line_spacing": 1.5,
   "instruction_button_delay": 5.0,
   "instruction_center_y": 0.15,
