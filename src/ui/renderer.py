@@ -266,9 +266,9 @@ class Renderer:
         answered_count = max(0, min(answered_count, total_count))
         txt = f"已答 {answered_count} / 总数 {total_count}"
         color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
-        y = self.layout['header_y']
-        right_edge_x = self.layout['nav_arrow_x_right'] - (self.layout['nav_arrow_w'] / 2.0)
-        x = right_edge_x - self.layout['progress_right_margin']
+        y = self._layout['header_y']
+        right_edge_x = self._layout['nav_arrow_x_right'] - (self._layout['nav_arrow_w'] / 2.0)
+        x = right_edge_x - self._layout['progress_right_margin']
         self._progress_stim.text = txt
         self._progress_stim.pos = (x, y)
         self._progress_stim.color = color
