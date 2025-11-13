@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2025-01-13
+
 ### Fixed
 
 - Corrected private attribute access in `Renderer.draw_progress()` method
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced documentation across multiple modules
 - Updated type annotations for better code clarity
 - Improved docstrings for `SectionRunner`, `Renderer`, `Navigator`, and utility modules
+- Added comprehensive CHANGELOG.md following Keep a Changelog format
 
 ## [0.0.4] - 2024-11-XX
 
@@ -124,7 +127,8 @@ If upgrading from v0.0.3 or earlier:
 2. Custom mouse handling code may need updates for edge detection pattern
 3. All public APIs remain backward compatible
 
-[Unreleased]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.0.4...v0.1.0
 [0.0.4]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/EF-STUDY-FENG/rapm-dev/compare/v0.0.1...v0.0.2
