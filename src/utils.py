@@ -22,11 +22,11 @@ def build_items_from_pattern(
         pattern: Path template with {XX} and {Y} placeholders
         count: Number of items to generate
         answers: List of correct answer indices
-        start_index: Offset for answer lookup
-        section_prefix: Prefix for item IDs ('P' or 'F')
+        start_index: Offset for answer lookup (0-based index into answers list)
+        section_prefix: Prefix for item IDs ('P' for practice, 'F' for formal)
 
     Returns:
-        List of item dicts with id, question_image, options, correct
+        List of item dictionaries with keys: id, question_image, options, correct
     """
     items: list[Item] = []
     for i in range(1, count + 1):

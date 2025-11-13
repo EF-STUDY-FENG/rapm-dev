@@ -14,6 +14,8 @@ except Exception:
 class SectionTiming:
     """Encapsulates timing state for a test section.
 
+    Manages section timing including start time, deadline, and response timestamps.
+
     Attributes:
         start_time: Section start timestamp (from core.getTime())
         deadline: Section timeout timestamp

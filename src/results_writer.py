@@ -12,7 +12,17 @@ from rapm_types import ParticipantInfo, SectionConfig
 DATA_DIR = get_output_dir()
 
 class ResultsWriter:
+    """Handles persistence of RAPM task results to CSV and JSON.
+
+    Saves participant information, answers, and timing data in structured format.
+    """
+
     def __init__(self, output_dir: str | None = None) -> None:
+        """Initialize results writer.
+
+        Args:
+            output_dir: Custom output directory (defaults to DATA_DIR)
+        """
         self.output_dir = output_dir or DATA_DIR
 
     def save(

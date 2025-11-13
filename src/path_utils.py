@@ -17,10 +17,10 @@ def is_stimuli_dir_empty(dirpath: str) -> bool:
     """Check if stimuli directory is empty or contains only .gitignore.
 
     Args:
-        dirpath: Path to the stimuli directory
+        dirpath: Path to the stimuli directory to check
 
     Returns:
-        True if directory is empty or only contains .gitignore, False otherwise
+        bool: True if directory is empty or only contains .gitignore
     """
     try:
         if not os.path.isdir(dirpath):

@@ -4,10 +4,10 @@ This module implements the complete RAPM experiment flow with:
 - Practice and formal test sections
 - Configurable timing and layout
 - Navigation and progress tracking
-- Results persistence
+- Results persistence (CSV and JSON)
 
 Architecture:
-    - build_items_from_pattern(): Module-level helper for item generation
+    - create_window(): Context manager for PsychoPy window lifecycle
     - RavenTask: Main experiment class with organized method groups
 """
 from __future__ import annotations
@@ -35,11 +35,14 @@ def create_window(debug_mode: bool):
     """Context manager to create and cleanup a PsychoPy window.
 
     Args:
-        debug_mode: When True, creates a windowed mode for faster debugging.
-                    When False, creates a fullscreen window for experiments.
+        debug_mode: If True, creates windowed mode (1280x800) for testing.
+                    If False, creates fullscreen mode for actual experiments.
 
     Yields:
-        visual.Window: The created PsychoPy window.
+        visual.Window: The created PsychoPy window instance.
+
+    Note:
+        Window is automatically closed on context exit, even if exceptions occur.
     """
     if debug_mode:
         win = visual.Window(

@@ -1,8 +1,14 @@
 """SectionRunner: orchestrates a single section flow using Renderer and Navigator.
 
 Responsibilities:
+- Manages event loop for practice/formal sections
+- Coordinates rendering (Renderer) and navigation (Navigator)
+- Handles mouse interactions with edge detection (debouncing)
+- Tracks timing and auto-advance logic
 """
 from __future__ import annotations
+
+from typing import Any
 
 from psychopy import core, event
 
@@ -14,7 +20,23 @@ class SectionRunner:
     # CONSTRUCTION
     # =========================================================================
 
-    def __init__(self, win, renderer, navigator, layout: dict, debug_mode: bool) -> None:
+    def __init__(
+        self,
+        win: Any,
+        renderer: Any,
+        navigator: Any,
+        layout: dict,
+        debug_mode: bool,
+    ) -> None:
+        """Initialize section runner.
+
+        Args:
+            win: PsychoPy window instance
+            renderer: Renderer instance for drawing
+            navigator: Navigator instance for navigation bar
+            layout: Layout configuration dictionary
+            debug_mode: If True, shorter timers for testing
+        """
         self.win = win
         self.renderer = renderer
         self.navigator = navigator
@@ -32,13 +54,13 @@ class SectionRunner:
         answers: dict[str, int],
         timing,
     ) -> None:
-        """Run a single section ('practice'|'formal').
+        """Run a single section ('practice' or 'formal').
 
         Args:
-            section: section name
-            conf: section config dict (items, instruction, time_limit_minutes, ...)
-            answers: dict to mutate with user answers
-            timing: SectionTiming instance for this section
+            section: Section name ('practice' or 'formal')
+            conf: Section configuration (items, instruction, time_limit_minutes)
+            answers: Dictionary to store user answers (mutated in-place)
+            timing: SectionTiming instance for tracking time and responses
         """
         items = conf['items']
         n_items = len(items)
@@ -111,8 +133,6 @@ class SectionRunner:
                 red_threshold=red_threshold,
                 answered_count=len(answers),
                 total_count=n_items,
-                show_timer=True,
-                show_progress=True,
             )
 
             # Draw question and options
@@ -128,7 +148,7 @@ class SectionRunner:
             # Draw submit button (when all answered)
             submit_btn = None
             if show_submit and len(answers) == n_items:
-                submit_btn = self.renderer.draw_submit_button(label=submit_button_text)
+                submit_btn = self.renderer.draw_submit_button(mouse, label=submit_button_text)
 
             self.win.flip()
 
@@ -163,7 +183,7 @@ class SectionRunner:
 
             # Handle navigation click
             nav_action, current_index, nav_offset = self.navigator.handle_click(
-                self.win, nav_items, l_rect, r_rect, items, current_index, nav_offset, mouse
+                nav_items, l_rect, r_rect, items, current_index, nav_offset, mouse
             )
             if nav_action == 'jump':
                 nav_offset = self.navigator.center_offset(current_index, n_items)

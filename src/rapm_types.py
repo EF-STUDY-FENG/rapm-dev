@@ -1,4 +1,12 @@
-"""Typed structures for RAPM task configuration and items."""
+"""Typed structures for RAPM task configuration and data models.
+
+Defines TypedDict schemas for:
+- Item: Question and options data structure
+- SectionConfig: Practice/formal section configuration
+- ParticipantInfo: User demographic information
+- LayoutConfig: Visual layout parameters
+- SequenceConfig: Overall experiment sequence
+"""
 from __future__ import annotations
 
 from typing import TypedDict
