@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2025-01-13
+## [0.1.0]
 
 ### Fixed
 
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved docstrings for `SectionRunner`, `Renderer`, `Navigator`, and utility modules
 - Added comprehensive CHANGELOG.md following Keep a Changelog format
 
-## [0.0.4] - 2024-11-XX
+## [0.0.4]
 
 ### Changed
 
@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Option image fill value adjusted for better visual consistency
 
-## [0.0.3] - 2024-11-XX
+## [0.0.3]
 
 ### Added
 
@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import organization and linting issues
 - Indentation inconsistencies
 
-## [0.0.2] - 2024-11-XX
+## [0.0.2]
 
 ### Added
 
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unused imports and stale comments
 - Legacy code after banner removal
 
-## [0.0.1] - 2024-11-XX
+## [0.0.1]
 
 ### Added
 
