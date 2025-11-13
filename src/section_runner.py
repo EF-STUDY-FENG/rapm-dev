@@ -63,11 +63,12 @@ class SectionRunner:
             duration = conf['time_limit_minutes'] * 60
         timing.initialize(start_time, duration)
 
-        # Timer thresholds and submit flag
+        # Timer thresholds and submit button configuration
         if section == 'practice':
             show_threshold: int | None = None
             red_threshold: int | None = None
-            show_submit = False
+            show_submit = True  # Now show submit button in practice too
+            submit_button_text = '完成练习'
         else:
             if self.debug_mode:
                 show_threshold = self.layout['debug_timer_show_threshold']
@@ -76,6 +77,7 @@ class SectionRunner:
                 show_threshold = self.layout['formal_timer_show_threshold']
                 red_threshold = self.layout['timer_red_threshold']
             show_submit = True
+            submit_button_text = '提交作答'
 
         current_index = 0
         nav_offset = 0
@@ -123,10 +125,10 @@ class SectionRunner:
                 selected_index=(prev_choice - 1) if prev_choice else None
             )
 
-            # Draw submit button (formal only, when all answered)
+            # Draw submit button (when all answered)
             submit_btn = None
             if show_submit and len(answers) == n_items:
-                submit_btn = self.renderer.draw_submit_button()
+                submit_btn = self.renderer.draw_submit_button(label=submit_button_text)
 
             self.win.flip()
 
@@ -149,18 +151,14 @@ class SectionRunner:
                     answers[item['id']] = i + 1
                     timing.last_times[item['id']] = core.getTime()
 
-                    # Check completion
-                    if len(answers) == n_items:
-                        if section == 'practice':
-                            break  # Exit practice immediately
-                        # Formal: stay in loop to show submit button
-                    else:
-                        # Auto-advance to next unanswered
+                    # Auto-advance to next unanswered (if not all complete)
+                    if len(answers) < n_items:
                         next_index = self.navigator.find_next_unanswered(
                             items, answers, current_index
                         )
                         current_index = next_index
                         nav_offset = self.navigator.center_offset(next_index, n_items)
+                    # If all answered, stay in loop to show submit button
                     break  # Found clicked rect, exit for loop
 
             # Handle navigation click

@@ -260,8 +260,12 @@ class Renderer:
                         color='gray', font=self.layout['font_main']
                     ).draw()
 
-    def draw_submit_button(self) -> Any:
-        """Draw submit button (returns rect for hit testing)."""
+    def draw_submit_button(self, label: str = '提交作答') -> Any:
+        """Draw submit button (returns rect for hit testing).
+
+        Args:
+            label: Button text to display (defaults to '提交作答').
+        """
         btn_pos = (self.layout['button_x'], self.layout['submit_button_y'])
         mouse_local = event.Mouse(win=self.win)
         temp_rect = visual.Rect(
@@ -291,7 +295,7 @@ class Renderer:
             lineWidth=self.layout['button_line_width'],
         )
         submit_label = visual.TextStim(
-            self.win, text='提交作答', pos=btn_pos, height=self.layout['button_label_height'],
+            self.win, text=label, pos=btn_pos, height=self.layout['button_label_height'],
             color='white', font=self.layout['font_main']
         )
         submit_rect.draw()
