@@ -16,9 +16,6 @@ from rapm_types import SectionConfig
 
 
 class SectionRunner:
-    # =========================================================================
-    # CONSTRUCTION
-    # =========================================================================
 
     def __init__(
         self,
@@ -43,10 +40,6 @@ class SectionRunner:
         self.layout = layout
         self.debug_mode = debug_mode
 
-    # =========================================================================
-    # PUBLIC API
-    # =========================================================================
-
     def run_section(
         self,
         section: str,
@@ -67,7 +60,6 @@ class SectionRunner:
         if n_items == 0:
             return
 
-        # Show instruction with button
         instruction_text = conf.get('instruction', '')
         button_text = conf.get('button_text', '继续')
         if instruction_text:
@@ -77,7 +69,6 @@ class SectionRunner:
                 debug_mode=self.debug_mode,
             )
 
-        # Initialize timing
         start_time = core.getTime()
         if self.debug_mode:
             duration = 10 if section == 'practice' else 25  # Debug: 10s/25s
@@ -85,7 +76,6 @@ class SectionRunner:
             duration = conf['time_limit_minutes'] * 60
         timing.initialize(start_time, duration)
 
-        # Timer thresholds and submit button configuration
         if section == 'practice':
             show_threshold: int | None = None
             red_threshold: int | None = None
@@ -104,11 +94,9 @@ class SectionRunner:
         current_index = 0
         nav_offset = 0
 
-        # Mouse state tracking (for debouncing without blocking)
         mouse = event.Mouse(win=self.win)
-        mouse_was_pressed = False  # Track previous frame state
+        mouse_was_pressed = False
 
-        # Main event loop
         while timing.remaining_seconds() > 0:
             item = items[current_index]
 

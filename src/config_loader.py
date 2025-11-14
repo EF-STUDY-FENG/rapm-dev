@@ -64,11 +64,9 @@ def get_exe_override_path(rel_path: str) -> str | None:
     return None
 
 
-# Module-level constants
 BASE_DIR = get_base_dir()
 SEQUENCE_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'sequence.json')
 LAYOUT_DEFAULT_PATH = os.path.join(BASE_DIR, 'configs', 'layout.json')
-# (Import of rapm_types moved to top to satisfy E402)
 
 
 def load_sequence() -> SequenceConfig:
@@ -79,7 +77,6 @@ def load_sequence() -> SequenceConfig:
     """
     with open(SEQUENCE_DEFAULT_PATH, encoding='utf-8') as f:
         data = json.load(f)
-    # Best‑effort cast (run‑time validation could be added if needed)
     return cast(SequenceConfig, data)
 
 
@@ -91,7 +88,6 @@ def load_layout() -> LayoutConfig:
     2) If running as frozen exe, load overrides from <exe_dir>/configs/layout.json
     3) Merge: override parameters take precedence, missing ones use defaults
     """
-    # Step 1: Load the default layout (required baseline)
     if not os.path.exists(LAYOUT_DEFAULT_PATH):
         raise RuntimeError(
             f"未找到默认布局配置文件: {LAYOUT_DEFAULT_PATH}\n"
@@ -102,16 +98,14 @@ def load_layout() -> LayoutConfig:
         layout_raw = json.load(f)
     layout: LayoutConfig = cast(LayoutConfig, layout_raw)
 
-    # Step 2: Check for external override (only when frozen)
     override_path = get_exe_override_path(os.path.join('configs', 'layout.json'))
     if override_path and os.path.exists(override_path):
         try:
             with open(override_path, encoding='utf-8') as f:
                 overrides_raw = json.load(f)
             overrides = cast(LayoutConfig, overrides_raw)
-            layout.update(overrides)  # overrides take precedence
+            layout.update(overrides)
         except Exception as e:
-            # If override file is malformed, warn but continue with defaults
             import warnings
             warnings.warn(
                 f"外部布局配置文件格式错误，将使用默认配置: {override_path}\n错误: {e}"

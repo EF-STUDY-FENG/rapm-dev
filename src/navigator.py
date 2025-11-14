@@ -24,10 +24,6 @@ class Navigator:
     - Helper methods: Configure individual buttons and arrows
     """
 
-    # =========================================================================
-    # INITIALIZATION (lazy-init placeholders)
-    # =========================================================================
-
     def __init__(self, layout: LayoutConfig, max_visible_nav: int = 12) -> None:
         """Initialize navigator with configuration (visual objects created lazily).
 
@@ -38,19 +34,13 @@ class Navigator:
         self._layout = layout
         self._max_visible_nav = max_visible_nav
 
-        # Lazy-init placeholders (objects created on first build_navigation call)
-        # Prevents memory leaks: objects are reused instead of recreated per frame
-        self._nav_rects = None  # List of navigation button rectangles
-        self._nav_labels = None  # List of navigation button labels
-        self._left_arrow_rect = None  # Left pagination arrow rectangle
-        self._left_arrow_label = None  # Left pagination arrow label
-        self._right_arrow_rect = None  # Right pagination arrow rectangle
-        self._right_arrow_label = None  # Right pagination arrow label
-        self._initialized_win = None  # Track window binding
-
-    # =========================================================================
-    # UI CONSTRUCTION (lazy-init + configuration)
-    # =========================================================================
+        self._nav_rects = None
+        self._nav_labels = None
+        self._left_arrow_rect = None
+        self._left_arrow_label = None
+        self._right_arrow_rect = None
+        self._right_arrow_label = None
+        self._initialized_win = None
 
     def _ensure_initialized(self, win: visual.Window) -> None:
         """Lazy initialization: create reusable visual objects on first use.
@@ -62,9 +52,8 @@ class Navigator:
             win: PsychoPy window to bind visual objects to
         """
         if self._nav_rects is not None and self._initialized_win == win:
-            return  # Already initialized for this window
+            return
 
-        # Create navigation button objects (rects + labels)
         self._nav_rects = [
             visual.Rect(win, width=0, height=0) for _ in range(self._max_visible_nav)
         ]
@@ -73,7 +62,6 @@ class Navigator:
             for _ in range(self._max_visible_nav)
         ]
 
-        # Create arrow navigation objects
         self._left_arrow_rect = visual.Rect(win, width=0, height=0)
         self._left_arrow_label = visual.TextStim(
             win, text='◄', font=self._layout['font_main']

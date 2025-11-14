@@ -26,9 +26,6 @@ from results_writer import ResultsWriter
 from section_runner import SectionRunner
 from utils import build_items_from_pattern
 
-# =============================================================================
-# MODULE-LEVEL HELPERS
-# =============================================================================
 
 @contextmanager
 def create_window(debug_mode: bool):
@@ -65,10 +62,6 @@ def create_window(debug_mode: bool):
             pass
 
 
-# =============================================================================
-# MAIN TASK CLASS
-# =============================================================================
-
 class RavenTask:
     """Raven's Advanced Progressive Matrices experiment controller.
 
@@ -94,10 +87,6 @@ class RavenTask:
     - Window and UI components are local to run() scope
     """
 
-    # =========================================================================
-    # CONSTRUCTION
-    # =========================================================================
-
     def __init__(
         self,
         sequence: dict[str, Any],
@@ -111,28 +100,22 @@ class RavenTask:
             layout: UI layout parameters from configs/layout.json
             participant_info: Participant metadata (id, age, gender, etc.)
         """
-        # Section configs (directly assigned, no intermediate dictionary)
         from typing import cast
         self.practice = cast(SectionConfig, sequence['practice'])
         self.formal = cast(SectionConfig, sequence['formal'])
 
-        # Participant and answer tracking
         self.participant_info = cast(ParticipantInfo, participant_info or {})
         self.practice_answers = {}
         self.formal_answers = {}
 
-        # Layout parameters (direct reference, guaranteed complete by config_loader)
         self.layout = layout
 
-        # Debug mode: layout flag OR participant_id == '0'
         pid = str(self.participant_info.get('participant_id', '')).strip()
         self.debug_mode = self.layout.get('debug_mode', False) or (pid == '0')
 
-        # Timing management (initialized in run_section)
         self.practice_timing = SectionTiming()
         self.formal_timing = SectionTiming()
 
-        # Navigation constants
         self.max_visible_nav = 12
 
         # Build item lists from patterns if answers file provided

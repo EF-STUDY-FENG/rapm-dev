@@ -30,10 +30,6 @@ class Renderer:
     - Utility: Helper methods (geometry, rect creation)
     """
 
-    # =========================================================================
-    # INITIALIZATION (memory-optimized object pooling)
-    # =========================================================================
-
     def __init__(self, win: visual.Window, layout: LayoutConfig) -> None:
         """Initialize renderer with pre-created reusable visual objects.
 
@@ -44,9 +40,6 @@ class Renderer:
         self._win = win
         self._layout = layout
 
-        # Pre-create reusable visual objects to prevent GPU memory leaks
-        # These objects are updated per-frame instead of recreated
-        # Header components (timer and progress bar)
         self._timer_stim = visual.TextStim(
             self._win, text='', pos=(0, self._layout['header_y']),
             height=self._layout['header_font_size'], color='white', font=self._layout['font_main']
@@ -56,13 +49,11 @@ class Renderer:
             height=self._layout['header_font_size'], color='white', font=self._layout['font_main']
         )
 
-        # Question area placeholder (used when image unavailable)
         self._question_stim = visual.TextStim(
             self._win, text='', pos=(0, self._layout['question_box_y']),
             height=0.06, font=self._layout['font_main']
         )
 
-        # Option area placeholders (8 max for 4x2 grid, reused across frames)
         self._option_placeholders = [
             visual.TextStim(
                 self._win, text='', pos=(0, 0), height=0.05,
@@ -70,13 +61,6 @@ class Renderer:
             )
             for _ in range(8)
         ]
-
-    # =========================================================================
-    # BLOCKING SCREEN FLOWS (show_* methods with internal flip loops)
-    # =========================================================================
-    # These methods handle complete screen displays with their own event loops.
-    # Used for: instructions, completion messages, and other full-screen UIs.
-    # Note: These create temporary visual objects (acceptable for short-lived flows).
 
     def show_instruction(self, text: str, button_text: str, debug_mode: bool) -> None:
         """Display instruction screen with delayed clickable button (blocking).
@@ -110,7 +94,6 @@ class Renderer:
                 spacing=layout['instruction_line_spacing']
             )
 
-            # Button configuration
             btn_pos = (layout['button_x'], layout['instruction_button_y'])
             temp_rect = visual.Rect(
                 self._win,
@@ -153,7 +136,6 @@ class Renderer:
             btn_label.draw()
             self._win.flip()
 
-            # Edge detection: only trigger on release
             mouse_is_pressed = any(mouse.getPressed())
             mouse_just_released = mouse_was_pressed and not mouse_is_pressed
             mouse_was_pressed = mouse_is_pressed
@@ -201,13 +183,6 @@ class Renderer:
                 bold_idx=bold_idx,
             )
             self._win.flip()
-
-    # =========================================================================
-    # ATOMIC DRAWING PRIMITIVES (draw_* methods - no flip)
-    # =========================================================================
-    # These methods draw individual UI components without calling window.flip().
-    # Caller (typically section_runner) collects draws and flips once per frame.
-    # Memory-optimized: reuses pre-created objects where possible.
 
     def draw_header(
         self,
@@ -297,8 +272,6 @@ class Renderer:
                 max_h = q_h - layout['question_img_margin_h']
                 disp_w, disp_h = fitted_size_keep_aspect(image_path, max_w, max_h)
 
-                # ImageStim cannot be reused across different image paths
-                # Minimize memory by limiting scope (allows GC to clean up)
                 img = visual.ImageStim(
                     self._win,
                     image=resolve_path(image_path),
@@ -347,7 +320,6 @@ class Renderer:
                     max_h = layout['option_img_h'] * layout['scale_option']
                     disp_w, disp_h = fitted_size_keep_aspect(path, max_w, max_h)
                     fill = layout['option_img_fill']
-                    # ImageStim recreated per unique path (cannot pool), limited scope for GC
                     img = visual.ImageStim(
                         self._win,
                         image=resolve_path(path),
@@ -356,7 +328,6 @@ class Renderer:
                     )
                     img.draw()
                 else:
-                    # Reuse pre-created placeholder (memory-optimized)
                     if i < len(self._option_placeholders):
                         self._option_placeholders[i].text = str(i+1)
                         self._option_placeholders[i].pos = rect.pos
@@ -439,7 +410,6 @@ class Renderer:
         total = line_height * spacing * (n - 1) if n > 1 else 0.0
         start_y = center_y + total / 2.0
 
-        # Creates TextStim per line (acceptable: used in short-lived show_* flows)
         for i, text in enumerate(lines):
             y = start_y - i * (line_height * spacing)
             color = (colors[i] if (colors and i < len(colors)) else 'white')
@@ -453,10 +423,6 @@ class Renderer:
             except Exception:
                 pass
             stim.draw()
-
-    # =========================================================================
-    # UTILITY METHODS (geometry and object creation)
-    # =========================================================================
 
     def create_option_rects(self) -> list[Any]:
         """Create positioned Rect objects for option grid layout.
