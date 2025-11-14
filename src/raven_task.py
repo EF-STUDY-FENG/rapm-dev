@@ -18,12 +18,12 @@ from typing import Any
 from psychopy import visual
 
 from models import SectionTiming
+from navigator import Navigator
 from path_utils import load_answers
 from rapm_types import LayoutConfig, ParticipantInfo, SectionConfig
+from renderer import Renderer
 from results_writer import ResultsWriter
 from section_runner import SectionRunner
-from ui.navigator import Navigator
-from ui.renderer import Renderer
 from utils import build_items_from_pattern
 
 # =============================================================================
