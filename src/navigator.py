@@ -51,7 +51,8 @@ class Navigator:
         Args:
             win: PsychoPy window to bind visual objects to
         """
-        if self._nav_rects is not None and self._initialized_win == win:
+        already_initialized = self._nav_rects is not None and self._initialized_win == win
+        if already_initialized:
             return
 
         self._nav_rects = [

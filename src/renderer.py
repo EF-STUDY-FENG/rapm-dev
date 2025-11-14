@@ -19,6 +19,10 @@ from psychopy import core, event, visual
 from path_utils import file_exists_nonempty, fitted_size_keep_aspect, resolve_path
 from rapm_types import LayoutConfig
 
+QUESTION_PLACEHOLDER_HEIGHT = 0.06
+OPTION_PLACEHOLDER_HEIGHT = 0.05
+MAX_OPTIONS = 8
+
 
 class Renderer:
     """Handles all visual rendering for RAPM tasks with memory optimization.
@@ -51,15 +55,15 @@ class Renderer:
 
         self._question_stim = visual.TextStim(
             self._win, text='', pos=(0, self._layout['question_box_y']),
-            height=0.06, font=self._layout['font_main']
+            height=QUESTION_PLACEHOLDER_HEIGHT, font=self._layout['font_main']
         )
 
         self._option_placeholders = [
             visual.TextStim(
-                self._win, text='', pos=(0, 0), height=0.05,
+                self._win, text='', pos=(0, 0), height=OPTION_PLACEHOLDER_HEIGHT,
                 color='gray', font=self._layout['font_main']
             )
-            for _ in range(8)
+            for _ in range(MAX_OPTIONS)
         ]
 
     def show_instruction(self, text: str, button_text: str, debug_mode: bool) -> None:
@@ -223,7 +227,10 @@ class Renderer:
             return
         mins, secs = divmod(remaining, 60)
         timer_text = f"剩余时间: {mins:02d}:{secs:02d}"
-        color = 'red' if (red_threshold is not None and remaining <= red_threshold) else 'white'
+
+        is_urgent = red_threshold is not None and remaining <= red_threshold
+        color = 'red' if is_urgent else 'white'
+
         self._timer_stim.text = timer_text
         self._timer_stim.color = color
         self._timer_stim.draw()
@@ -240,7 +247,10 @@ class Renderer:
         """
         answered_count = max(0, min(answered_count, total_count))
         txt = f"已答 {answered_count} / 总数 {total_count}"
-        color = 'green' if (total_count > 0 and answered_count >= total_count) else 'white'
+
+        all_completed = total_count > 0 and answered_count >= total_count
+        color = 'green' if all_completed else 'white'
+
         y = self._layout['header_y']
         right_edge_x = self._layout['nav_arrow_x_right'] - (self._layout['nav_arrow_w'] / 2.0)
         x = right_edge_x - self._layout['progress_right_margin']

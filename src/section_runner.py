@@ -14,6 +14,9 @@ from psychopy import core, event
 
 from rapm_types import SectionConfig
 
+DEBUG_PRACTICE_DURATION = 10
+DEBUG_FORMAL_DURATION = 25
+
 
 class SectionRunner:
 
@@ -39,6 +42,26 @@ class SectionRunner:
         self.navigator = navigator
         self.layout = layout
         self.debug_mode = debug_mode
+
+    def _get_timer_config(self, section: str) -> tuple[int | None, int | None]:
+        """Get timer display thresholds based on section and debug mode.
+
+        Returns:
+            (show_threshold, red_threshold) tuple
+        """
+        if section == 'practice':
+            return None, None
+
+        if self.debug_mode:
+            return (
+                self.layout['debug_timer_show_threshold'],
+                self.layout['debug_timer_red_threshold']
+            )
+
+        return (
+            self.layout['formal_timer_show_threshold'],
+            self.layout['timer_red_threshold']
+        )
 
     def run_section(
         self,
@@ -71,25 +94,14 @@ class SectionRunner:
 
         start_time = core.getTime()
         if self.debug_mode:
-            duration = 10 if section == 'practice' else 25  # Debug: 10s/25s
+            duration = DEBUG_PRACTICE_DURATION if section == 'practice' else DEBUG_FORMAL_DURATION
         else:
             duration = conf['time_limit_minutes'] * 60
         timing.initialize(start_time, duration)
 
-        if section == 'practice':
-            show_threshold: int | None = None
-            red_threshold: int | None = None
-            show_submit = True  # Now show submit button in practice too
-            submit_button_text = '完成练习'
-        else:
-            if self.debug_mode:
-                show_threshold = self.layout['debug_timer_show_threshold']
-                red_threshold = self.layout['debug_timer_red_threshold']
-            else:
-                show_threshold = self.layout['formal_timer_show_threshold']
-                red_threshold = self.layout['timer_red_threshold']
-            show_submit = True
-            submit_button_text = '提交作答'
+        show_threshold, red_threshold = self._get_timer_config(section)
+        show_submit = True
+        submit_button_text = '完成练习' if section == 'practice' else '提交作答'
 
         current_index = 0
         nav_offset = 0
