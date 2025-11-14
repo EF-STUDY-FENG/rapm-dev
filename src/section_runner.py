@@ -71,7 +71,7 @@ class SectionRunner:
 
         Args:
             section: Section name ('practice' or 'formal')
-            conf: Section configuration (items, instruction, time_limit_minutes)
+            conf: Section configuration (items, instruction, durations)
             answers: Dictionary to store user answers (mutated in-place)
             timing: SectionTiming instance for tracking time and responses
         """
@@ -90,10 +90,11 @@ class SectionRunner:
             )
 
         start_time = core.getTime()
+        durations = conf.get('durations', {})
         if self.debug_mode:
-            duration = conf.get('debug_duration', 10 if section == 'practice' else 25)
+            duration = durations.get('debug', 10)
         else:
-            duration = conf['time_limit_minutes'] * 60
+            duration = durations.get('normal', 600)
         timing.initialize(start_time, duration)
 
         show_threshold, red_threshold = self._get_timer_config(section)

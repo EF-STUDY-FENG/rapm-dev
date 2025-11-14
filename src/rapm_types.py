@@ -24,8 +24,7 @@ class SectionConfig(TypedDict, total=False):
     pattern: str
     instruction: str
     button_text: str
-    time_limit_minutes: int
-    debug_duration: int
+    durations: dict[str, int]
     items: list[Item]
 
 class ParticipantInfo(TypedDict, total=False):

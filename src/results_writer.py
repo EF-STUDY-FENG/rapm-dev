@@ -99,7 +99,7 @@ class ResultsWriter:
             'time_created': datetime.now().isoformat(timespec='seconds'),
             'practice': {
                 'set': practice_conf.get('set'),
-                'time_limit_minutes': practice_conf.get('time_limit_minutes'),
+                'duration_seconds': practice_conf.get('durations', {}).get('normal'),
                 'n_items': len(practice_conf.get('items', [])),
                 'correct_count': practice_correct,
                 'remaining_seconds_at_save': getattr(
@@ -110,7 +110,7 @@ class ResultsWriter:
             },
             'formal': {
                 'set': formal_conf.get('set'),
-                'time_limit_minutes': formal_conf.get('time_limit_minutes'),
+                'duration_seconds': formal_conf.get('durations', {}).get('normal'),
                 'n_items': len(formal_conf.get('items', [])),
                 'correct_count': formal_correct,
                 'remaining_seconds_at_save': getattr(
