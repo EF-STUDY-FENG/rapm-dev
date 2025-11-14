@@ -25,6 +25,7 @@ class SectionConfig(TypedDict, total=False):
     instruction: str
     button_text: str
     time_limit_minutes: int
+    debug_duration: int
     items: list[Item]
 
 class ParticipantInfo(TypedDict, total=False):

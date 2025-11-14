@@ -14,9 +14,6 @@ from psychopy import core, event
 
 from rapm_types import SectionConfig
 
-DEBUG_PRACTICE_DURATION = 10
-DEBUG_FORMAL_DURATION = 25
-
 
 class SectionRunner:
 
@@ -94,7 +91,7 @@ class SectionRunner:
 
         start_time = core.getTime()
         if self.debug_mode:
-            duration = DEBUG_PRACTICE_DURATION if section == 'practice' else DEBUG_FORMAL_DURATION
+            duration = conf.get('debug_duration', 10 if section == 'practice' else 25)
         else:
             duration = conf['time_limit_minutes'] * 60
         timing.initialize(start_time, duration)

@@ -2,6 +2,7 @@
   "practice": {
     "set": "Set I",
     "time_limit_minutes": 10,
+    "debug_duration": 10,
     "count": 12,
     "pattern": "stimuli/images/RAPM_t{XX}-{Y}.jpg",
     "instruction": "下面将进行的是瑞文高级推理测验\n每道题目的上方是一张大图，大图的图案缺了一部分\n请你从下面8个备选图形中找出大图的缺失部分，并选中它\n在正式测试之前，有12道练习题目\n限时10分钟",
@@ -10,6 +11,7 @@
   "formal": {
     "set": "Set II",
     "time_limit_minutes": 40,
+    "debug_duration": 25,
     "count": 36,
     "pattern": "stimuli/images/RAPM_{XX}-{Y}.jpg",
     "instruction": "练习结束，下面将开始正式测试\n正式测试一共有36道题目\n题目按从易到难的顺序编排\n限时40分钟\n只剩最后10分钟时将倒计时提醒您",
